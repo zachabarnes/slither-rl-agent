@@ -7,7 +7,7 @@
 conda create python=2.7 --name rattle
 ```
 
-2.) install system stuff
+2.) install system stuff (not sure what windows commands are)
 
 ```
 brew install golang libjpeg-turbo
