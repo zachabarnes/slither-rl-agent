@@ -3,9 +3,9 @@
 
 ## Setup instructions: ##
 1.) Create a Python 2.7 (virt env)
-'''
+```
 conda create python=2.7 --name rattle
-'''
+```
 
 2.) install system stuff
 
