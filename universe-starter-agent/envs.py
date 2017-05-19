@@ -23,7 +23,7 @@ def create_env(env_id, client_id, remotes, **kwargs):
     elif spec.tags.get('atari', False) and spec.tags.get('vnc', False):
         return create_vncatari_env(env_id, client_id, remotes, **kwargs)
     elif spec.tags.get('internet',False):
-        return create_internet_env(env_id, **kwargs)
+        return create_internet_env(env_id, client_id, remotes, **kwargs)
     else:
         # Assume atari.
         assert "." not in env_id  # universe environments have dots in names.
@@ -38,6 +38,7 @@ def create_flash_env(env_id, client_id, remotes, **_):
     reg = universe.runtime_spec('flashgames').server_registry
     height = reg[env_id]["height"]
     width = reg[env_id]["width"]
+
     env = CropScreen(env, height, width, 84, 18)
     env = FlashRescale(env)
 
@@ -81,12 +82,20 @@ def create_atari_env(env_id):
     env = Unvectorize(env)
     return env
 
-def create_internet_env(env_id):
+def create_internet_env(env_id, client_id, remotes, **_):
     env = gym.make(env_id)
     env = Vision(env)
+    env = Logger(env)
+    env = BlockingReset(env)
+
+    env = CropScreen(env, 300, 500, 84, 18)
     env = SlitherRescale(env)
+    env = DiscreteToFixedKeysVNCActions(env, ['left', 'right', 'space', 'left space', 'right space'])
+    env = EpisodeID(env)
     env = DiagnosticsInfo(env)
     env = Unvectorize(env)
+    env.configure(fps=5.0, remotes=remotes, start_timeout=15 * 60, client_id=client_id, vnc_driver='go', vnc_kwargs={
+                    'encoding': 'tight', 'compress_level': 0, 'fine_quality_level': 50, 'subsample_level': 3})
     return env
 
 def DiagnosticsInfo(env, *args, **kwargs):
@@ -202,14 +211,20 @@ def slither_vnc(space=False, left=False, right=False):
             universe.spaces.KeyEvent.by_name('left', down=left),
             universe.spaces.KeyEvent.by_name('right', down=right)]
 
+def _process_frame_slither(frame):
+    frame = cv2.resize(frame, (200, 128))
+    frame = frame.mean(2).astype(np.float32)
+    frame *= (1.0 / 255.0)
+    frame = np.reshape(frame, [128, 200, 1])
+    return frame
+
 class SlitherRescale(vectorized.ObservationWrapper):
     def __init__(self, env=None):
         super(SlitherRescale, self).__init__(env)
-        self.observation_space = Box(0.0, 1.0, [42, 42, 1])
-        self.action_space = spaces.Discrete(6)
+        self.observation_space = Box(0.0, 1.0, [128, 200, 1])
 
     def _observation(self, observation_n):
-        return [_process_frame42(observation) for observation in observation_n]
+        return [_process_frame_flash(observation) for observation in observation_n]
 
 class FixedKeyState(object):
     def __init__(self, keys):
