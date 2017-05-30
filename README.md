@@ -2,7 +2,7 @@
 ##### By [Zach Barnes](https://github.com/zabarnes), [Tyler Romero](https://github.com/tyler-romero), [Frank Cipollone](https://github.com/fcipollone).
 
 ### Installation Instructions (meant for ubuntu VM):
-- Install [Conda] for ubuntu 16.04 (https://www.digitalocean.com/community/tutorials/how-to-install-the-anaconda-python-distribution-on-ubuntu-16-04)
+- Install [Conda](https://www.digitalocean.com/community/tutorials/how-to-install-the-anaconda-python-distribution-on-ubuntu-16-04) for ubuntu 16.04
 
 - Create Conda env
 ```
