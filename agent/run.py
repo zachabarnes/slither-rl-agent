@@ -1,12 +1,15 @@
 import gym
 import universe
 from utils.preprocess import greyscale
-from utils.wrappers import PreproWrapper, MaxAndSkipEnv
+from utils.wrappers import MaxAndSkipEnv
+
+from env import create_slither_env
 
 from schedule import LinearExploration, LinearSchedule
 from model import DeepQ
 
 from configs.RattLe import config
+
 
 """
 Use deep Q network for the Atari game. Please report the final result.
@@ -26,11 +29,9 @@ address-ip-of-the-server:6006
 """
 if __name__ == '__main__':
     # make env
-    env = gym.make(config.env_name)
-    env.configure(remotes=1)  # automatically creates a local docker container
-    
+    env = create_slither_env()
+    env.configure(fps=5.0, remotes=1, start_timeout=15 * 60, vnc_driver='go', vnc_kwargs={'encoding': 'tight', 'compress_level': 0, 'fine_quality_level': 50})
     #env = MaxAndSkipEnv(env, skip=config.skip_frame)
-    #env = PreproWrapper(env, prepro=greyscale, shape=(80, 80, 1), overwrite_render=config.overwrite_render)
 
     # exploration strategy
     exp_schedule = LinearExploration(env, config.eps_begin, config.eps_end, config.eps_nsteps)
@@ -41,3 +42,4 @@ if __name__ == '__main__':
     # train model
     model = DeepQ(env, config)
     model.run(exp_schedule, lr_schedule)
+

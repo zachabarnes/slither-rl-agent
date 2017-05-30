@@ -9,11 +9,11 @@ import sys
 from gym import wrappers
 from collections import deque
 
+from env import create_slither_env
+
 import tensorflow.contrib.layers as layers
 from utils.general import get_logger, Progbar, export_plot
 from utils.replay_buffer import ReplayBuffer
-from utils.preprocess import greyscale
-from utils.wrappers import PreproWrapper, MaxAndSkipEnv
 
 
 class DeepQ(object):
@@ -38,14 +38,14 @@ class DeepQ(object):
         if logger is None:
             self.logger = get_logger(config.log_path)
         self.env = env
-        self.num_actions = len(self.env.action_space.keys)
+        self.num_actions = self.env.action_space.n
 
         # build model
         self.build()
 
     def add_placeholders_op(self):
         state_shape = list(self.env.observation_space.shape)
-        img_height, img_width, nchannels = state_shape[0], state_shape[1], state_shape[2]
+        img_height, img_width, nchannels = 74, 124, 3
         self.s = tf.placeholder(tf.uint8, [None, img_height, img_width, nchannels*self.config.state_history])
         self.a = tf.placeholder(tf.int32, [None])
         self.r = tf.placeholder(tf.float32, [None])
@@ -338,15 +338,15 @@ class DeepQ(object):
         """
         Defines extra attributes for tensorboard
         """
-        self.avg_reward = -21.
-        self.max_reward = -21.
+        self.avg_reward = 0.
+        self.max_reward = 0.
         self.std_reward = 0
 
         self.avg_q = 0
         self.max_q = 0
         self.std_q = 0
         
-        self.eval_reward = -21.
+        self.eval_reward = 0.
 
 
     def update_averages(self, rewards, max_q_values, q_values, scores_eval):
@@ -554,11 +554,9 @@ class DeepQ(object):
         """
         Re create an env and record a video for one episode
         """
-        env = gym.make(self.config.env_name)
+        env = create_slither_env()
         env = gym.wrappers.Monitor(env, self.config.record_path, video_callable=lambda x: True, resume=True)
-        env = MaxAndSkipEnv(env, skip=self.config.skip_frame)
-        env = PreproWrapper(env, prepro=greyscale, shape=(80, 80, 1), 
-                        overwrite_render=self.config.overwrite_render)
+        env.configure(fps=5.0, remotes=1, start_timeout=15 * 60, vnc_driver='go', vnc_kwargs={'encoding': 'tight', 'compress_level': 0, 'fine_quality_level': 50})
         self.evaluate(env, 1)
 
 

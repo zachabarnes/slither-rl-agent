@@ -8,3 +8,9 @@ universe/
 *.txt
 
 *.pyc
+
+*.ipynb
+
+*.ip-172-31-29-53
+
+*.mp4

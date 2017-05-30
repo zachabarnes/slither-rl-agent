@@ -1,3 +1,4 @@
+import numpy as np
 class LinearSchedule(object):
     def __init__(self, eps_begin, eps_end, nsteps):
         """
