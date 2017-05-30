@@ -1,20 +1,21 @@
 import os
+import sys
+import time
+import logging
+
 import gym
 import universe
+
 import numpy as np
 import tensorflow as tf
-import logging
-import time
-import sys
+import tensorflow.contrib.layers as layers
+
 from gym import wrappers
 from collections import deque
 
-from env import create_slither_env
-
-import tensorflow.contrib.layers as layers
 from utils.general import get_logger, Progbar, export_plot
 from utils.replay_buffer import ReplayBuffer
-
+from utils.env import create_slither_env
 
 class DeepQ(object):
     """

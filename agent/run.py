@@ -1,9 +1,11 @@
+import sys
+sys.path
+sys.path.append('..')
+
 import gym
 import universe
-from utils.preprocess import greyscale
-from utils.wrappers import MaxAndSkipEnv
 
-from env import create_slither_env
+from utils.env import create_slither_env
 
 from schedule import LinearExploration, LinearSchedule
 from model import DeepQ
@@ -28,18 +30,17 @@ address-ip-of-the-server:6006
 6006 is the default port used by tensorboard.
 """
 if __name__ == '__main__':
-    # make env
-    env = create_slither_env()
-    env.configure(fps=5.0, remotes=1, start_timeout=15 * 60, vnc_driver='go', vnc_kwargs={'encoding': 'tight', 'compress_level': 0, 'fine_quality_level': 50})
-    #env = MaxAndSkipEnv(env, skip=config.skip_frame)
+	# make env
+	env = create_slither_env()
+	env.configure(fps=5.0, remotes=1, start_timeout=15 * 60, vnc_driver='go', vnc_kwargs={'encoding': 'tight', 'compress_level': 0, 'fine_quality_level': 50})
 
-    # exploration strategy
-    exp_schedule = LinearExploration(env, config.eps_begin, config.eps_end, config.eps_nsteps)
+	# exploration strategy
+	exp_schedule = LinearExploration(env, config.eps_begin, config.eps_end, config.eps_nsteps)
 
-    # learning rate schedule
-    lr_schedule  = LinearSchedule(config.lr_begin, config.lr_end, config.lr_nsteps)
+	# learning rate schedule
+	lr_schedule  = LinearSchedule(config.lr_begin, config.lr_end, config.lr_nsteps)
 
-    # train model
-    model = DeepQ(env, config)
-    model.run(exp_schedule, lr_schedule)
+	# train model
+	model = DeepQ(env, config)
+	model.run(exp_schedule, lr_schedule)
 
