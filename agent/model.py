@@ -83,6 +83,7 @@ class Model(object):
 		if len(scores_eval) > 0:
 			self.eval_reward = scores_eval[-1]
 
+
 	def train(self, exp_schedule, lr_schedule):
 
 		# initialize replay buffer and variables
@@ -108,7 +109,7 @@ class Model(object):
 				last_record += 1
 				if self.config.render_train: self.env.render()
 				# replay memory stuff
-				idx      = replay_buffer.store_frame(state)
+				idx     = replay_buffer.store_frame(state)
 				q_input = replay_buffer.encode_recent_observation()
 
 				# chose action according to current Q and exploration
