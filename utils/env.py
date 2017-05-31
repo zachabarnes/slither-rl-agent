@@ -1,7 +1,6 @@
 import gym
 import universe  # register the universe environments
 import numpy as np
-import cv2
 import pyglet
 import matplotlib
 matplotlib.use("TkAgg")
