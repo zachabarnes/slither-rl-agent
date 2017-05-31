@@ -341,8 +341,8 @@ class DeepQ(object):
         """
         Defines extra attributes for tensorboard
         """
-        self.avg_reward = 0.
-        self.max_reward = 0.
+        self.avg_reward = -1.0
+        self.max_reward = -1.0
         self.std_reward = 0
 
         self.avg_q = 0
