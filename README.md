@@ -34,6 +34,7 @@ pip install -e .
 
 - Install rest of needed packages
 ```
+cd ..
 pip install -r requirements.txt
 ```
 
