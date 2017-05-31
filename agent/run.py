@@ -12,7 +12,6 @@ from model import DeepQ
 
 from configs.RattLe import config
 
-
 """
 Use deep Q network for the Atari game. Please report the final result.
 Feel free to change the configurations (in the configs/ folder). 
@@ -34,6 +33,10 @@ if __name__ == '__main__':
 	env = create_slither_env()
 	env.configure(fps=5.0, remotes=1, start_timeout=15 * 60, vnc_driver='go', vnc_kwargs={'encoding': 'tight', 'compress_level': 0, 'fine_quality_level': 50})
 
+	record_env = create_slither_env()
+	gym.wrappers.Monitor(record_env, config.record_path, video_callable=lambda x: True, resume=True)
+	record_env.configure(fps=5.0, remotes=1, start_timeout=15 * 60, vnc_driver='go', vnc_kwargs={'encoding': 'tight', 'compress_level': 0, 'fine_quality_level': 50})
+
 	# exploration strategy
 	exp_schedule = LinearExploration(env, config.eps_begin, config.eps_end, config.eps_nsteps)
 
@@ -41,6 +44,6 @@ if __name__ == '__main__':
 	lr_schedule  = LinearSchedule(config.lr_begin, config.lr_end, config.lr_nsteps)
 
 	# train model
-	model = DeepQ(env, config)
+	model = DeepQ(env, record_env, config)
 	model.run(exp_schedule, lr_schedule)
 

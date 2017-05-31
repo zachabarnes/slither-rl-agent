@@ -5,7 +5,7 @@ universe/
 
 *.json
 
-*.txt
+log.txt
 
 *.pyc
 

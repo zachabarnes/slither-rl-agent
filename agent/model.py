@@ -10,18 +10,19 @@ import numpy as np
 import tensorflow as tf
 import tensorflow.contrib.layers as layers
 
+from utils.env import create_slither_env
+
 from gym import wrappers
 from collections import deque
 
 from utils.general import get_logger, Progbar, export_plot
 from utils.replay_buffer import ReplayBuffer
-from utils.env import create_slither_env
 
 class DeepQ(object):
     """
     Class 
     """
-    def __init__(self, env, config, logger=None):
+    def __init__(self, env, record_env, config, logger=None):
         """
         Initialize Q Network and env
 
@@ -39,6 +40,7 @@ class DeepQ(object):
         if logger is None:
             self.logger = get_logger(config.log_path)
         self.env = env
+        self.record_env = record_env
         self.num_actions = self.env.action_space.n
 
         # build model
@@ -500,6 +502,9 @@ class DeepQ(object):
         Evaluation with same procedure as the training
         """
         # log our activity only if default call
+        if env is self.record_env:
+            self.logger.info("Recording video...")
+
         if num_episodes is None:
             self.logger.info("Evaluating...")
 
@@ -509,6 +514,7 @@ class DeepQ(object):
 
         if env is None:
             env = self.env
+
 
         # replay memory to play
         replay_buffer = ReplayBuffer(self.config.buffer_size, self.config.state_history)
@@ -524,10 +530,14 @@ class DeepQ(object):
                 idx     = replay_buffer.store_frame(state)
                 q_input = replay_buffer.encode_recent_observation()
 
+                tic = time.clock()
                 action = self.get_action(q_input)
+                toc = time.clock()
+                #self.logger.info("Time for actions" + str(tic-toc))
 
                 # perform action in env
                 new_state, reward, done, info = env.step(action)
+                #self.logger.info(info)
 
                 # store in replay memory
                 replay_buffer.store_effect(idx, action, reward, done)
@@ -555,10 +565,11 @@ class DeepQ(object):
         """
         Re create an env and record a video for one episode
         """
-        env = create_slither_env()
-        env = gym.wrappers.Monitor(env, self.config.record_path, video_callable=lambda x: True, resume=True)
-        env.configure(fps=5.0, remotes=1, start_timeout=15 * 60, vnc_driver='go', vnc_kwargs={'encoding': 'tight', 'compress_level': 0, 'fine_quality_level': 50})
-        self.evaluate(env, 1)
+        #env = create_slither_env()
+        #env = gym.wrappers.Monitor(env, self.config.record_path, video_callable=lambda x: True, resume=True)
+        #env.configure(fps=5.0, remotes=1, start_timeout=15 * 60, vnc_driver='go', vnc_kwargs={'encoding': 'tight', 'compress_level': 0, 'fine_quality_level': 50})
+        
+        self.evaluate(self.record_env, 1)
 
 
     def run(self, exp_schedule, lr_schedule):
