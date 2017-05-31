@@ -3,3 +3,4 @@ incremental
 tensorflow
 six
 scipy
+matplotlib
