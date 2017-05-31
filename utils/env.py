@@ -127,45 +127,40 @@ class RenderWrapper(vectorized.Wrapper):
 	Wrapper for slither to apply preprocessing
 	Stores the state into variable self.obs
 	"""
-	def __init__(self, env, state_type, state_size):
+	def __init__(self, env, state_type):
 		self.viewer = None
-		self.state_type = state_type
-		self.state_size = state_size
-		super(RenderWrapper, self).__init__(env)
 
-	def resize(self):
-		self.orig_obs[0] = ndimage.zoom(self.orig_obs[0], (.25,.25,1), order=2)[1:,1:,:]
-		self.proc_obs[0] = ndimage.zoom(self.proc_obs[0], (.25,.25,1), order=2)[1:,1:,:]
+		self.state_type = state_type
+		self.processor = SlitherProcessor(state_type)
+		self.state_size = self.processor.state_size
+		self.high_val = self.processor.high_val
+
+		super(RenderWrapper, self).__init__(env)
 
 	def _reset(self):
 		self.orig_obs = self.env.reset()
-		self.proc_obs = slither_process(np.copy(self.orig_obs))
-		self.resize()
-		return self.proc_obs
+		self.proc_obs = self.processor.process(np.copy(self.orig_obs))
+		small_proc_obs = self.processor.resize(np.copy(self.proc_obs))
+		return small_proc_obs
 
 	def _step(self, action):
-		"""
-		Overwrites _step function from environment to apply preprocess
-		"""
 		self.orig_obs, reward, done, info = self.env.step(action)
-		self.proc_obs = slither_process(np.copy(self.orig_obs))
-		self.resize()
-		return self.proc_obs, reward, done, info
+		self.proc_obs = self.processor.process(np.copy(self.orig_obs))
+		small_proc_obs = self.processor.resize(np.copy(self.proc_obs))
+		return small_proc_obs, reward, done, info
 
 	def _render(self, mode='human', close=False):
-		"""
-		Overwrite _render function to vizualize preprocessing
-		"""
 		if close:
 			if self.viewer is not None:
 				self.viewer.close()
 				self.viewer = None
 			return
 
-		#If we want to save a render for examination
-		#np.save("image",self.orig_obs[0])
+		if self.state_type != 'features':
+			img = np.concatenate((self.orig_obs[0],self.proc_obs[0]),1)
+		else:
+			img = self.orig_obs[0]
 
-		img = np.concatenate((self.orig_obs[0],self.proc_obs[0]),1)
 		if mode == 'rgb_array':
 			return img
 		elif mode == 'human':
@@ -174,46 +169,146 @@ class RenderWrapper(vectorized.Wrapper):
 				self.viewer = SimpleImageViewer()
 			self.viewer.imshow(img)
 
-def slither_process(frame):
-	#code to preprocess a frame by trying to isolate food, us, and other snakes
+class SlitherProcessor(object):
+	def __init__(self, state_type):
+		self.state_type = state_type
 
-	frame = frame[0]
-	abs_t = 115
-	frame[(frame[:,:,0]<abs_t)*(frame[:,:,1]<abs_t)*(frame[:,:,2]<abs_t)] = 0
-	
-	rel_t = 30
-	avg_pix = np.mean(frame,2)
-	diff = np.abs(avg_pix-frame[:,:,0]) + np.abs(avg_pix-frame[:,:,1]) + np.abs(avg_pix-frame[:,:,2])
-	frame[:,:,:] = 255
-	frame[diff<rel_t] = 0
-	
-	sing_frame = ndimage.grey_erosion(frame[:,:,1], size=(2,2))
-	blur_radius = .35
-	sing_frame = ndimage.gaussian_filter(sing_frame, blur_radius)
-	labeled, nr_objects = ndimage.label(sing_frame)
-	
-	snake_threshold = 235
-	enemy_c = [255,0,0]
-	me_c = [0,255,0]
-	food_c = [0,0,255]
-	frame[:,:,:] = 0
-	me_label = np.bincount(labeled[145:155,245:255].flatten().astype(int))[1:]
-	if len(me_label)>0:
-		me_label = np.argmax(me_label) + 1
-	else:
-		me_label = -1
-	for i in range(nr_objects):
-		label = i+1
-		size = np.count_nonzero(labeled[labeled==label])
-		if size<snake_threshold:
-			frame[labeled==label] = food_c
-		elif me_label  == label:
-			frame[labeled==label] = me_c
+		if self.state_type == 'features':
+			self.state_size = [8,1,1]
+			self.zoom = (1,1,1)
+			self.high_val = 1.0 
+
+		elif self.state_type == 'colors':
+			self.state_size = [74,124,3]
+			self.zoom = (.25,.25,1)
+			self.high_val = 255.0
+
+		elif self.state_type == 'shapes':
+			self.state_size = [74,124,1]
+			self.zoom = (.25,.25,1)
+			self.high_val = 1.0
+
+		else: NotImplementedError
+
+	def process(self, frames):
+		if self.state_type == 'features':
+			return [self.process_features(f) for f in frames]
+
+		elif self.state_type == 'colors':
+			return [self.process_colors(f) for f in frames]
+
+		elif self.state_type == 'shapes':
+			return [self.process_shapes(f) for f in frames]
+
+	def resize(self, frames):
+		if self.state_type != 'features':
+			return [ndimage.zoom(f, self.zoom, order=2)[1:,1:,:] for f in frames]
 		else:
-		   frame[labeled==label] = enemy_c
-	return [frame]
+			return frames
 
-def create_slither_env(state_type, state_size):
+	def process_shapes(self,frame):
+		frame = self.remove_background(frame)
+		label = self.connected_components(frame)
+		return self.extract_shapes(label)
+
+	def process_colors(self,frame):
+		frame = self.remove_background(frame)
+		label = self.connected_components(frame)
+		return self.extract_colors(frame,label)
+
+	def process_features(self,frame):
+		frame = self.remove_background(frame)
+		label = self.connected_components(frame)
+		frame = self.extract_colors(frame,label)
+		return self.extract_features(frame)
+
+	def remove_background(self,frame):
+		abs_t = 115
+		frame[(frame[:,:,0]<abs_t)*(frame[:,:,1]<abs_t)*(frame[:,:,2]<abs_t)] = 0
+		
+		rel_t = 30
+		avg_pix = np.mean(frame,2)
+		diff = np.abs(avg_pix-frame[:,:,0]) + np.abs(avg_pix-frame[:,:,1]) + np.abs(avg_pix-frame[:,:,2])
+		frame[:,:,:] = 255
+		frame[diff<rel_t] = 0
+		return frame
+
+	def connected_components(self,frame):
+		sing_frame = ndimage.grey_erosion(frame[:,:,1], size=(2,2))
+		blur_radius = .35
+		sing_frame = ndimage.gaussian_filter(sing_frame, blur_radius)
+		labeled, self.nr_objects = ndimage.label(sing_frame)
+		return labeled[:,:,np.newaxis]
+
+	def extract_shapes(self, frame):
+		frame[frame != 0] = 1
+		return frame
+
+	def extract_colors(self, frame, label):
+		snake_threshold = 235
+		enemy_c = [255,0,0]
+		me_c = [0,255,0]
+		food_c = [0,0,255]
+		frame[:,:,:] = 0
+		me_label = np.bincount(label[145:155,245:255].flatten().astype(int))[1:]
+		if len(me_label)>0:
+			me_label = np.argmax(me_label) + 1
+		else:
+			me_label = -1
+		for i in range(nr_objects):
+			label = i+1
+			size = np.count_nonzero(labeled[labeled==label])
+			if size<snake_threshold:
+				frame[labeled==label] = food_c
+			elif me_label  == label:
+				frame[labeled==label] = me_c
+			else:
+			   frame[labeled==label] = enemy_c
+		return frame
+
+	def extract_features(self, frame):
+		pass
+
+
+	# def slither_process(frame):
+	# 	#code to preprocess a frame by trying to isolate food, us, and other snakes
+	# 	frame = frame[0]
+	# 	abs_t = 115
+	# 	frame[(frame[:,:,0]<abs_t)*(frame[:,:,1]<abs_t)*(frame[:,:,2]<abs_t)] = 0
+		
+	# 	rel_t = 30
+	# 	avg_pix = np.mean(frame,2)
+	# 	diff = np.abs(avg_pix-frame[:,:,0]) + np.abs(avg_pix-frame[:,:,1]) + np.abs(avg_pix-frame[:,:,2])
+	# 	frame[:,:,:] = 255
+	# 	frame[diff<rel_t] = 0
+		
+	# 	sing_frame = ndimage.grey_erosion(frame[:,:,1], size=(2,2))
+	# 	blur_radius = .35
+	# 	sing_frame = ndimage.gaussian_filter(sing_frame, blur_radius)
+	# 	labeled, nr_objects = ndimage.label(sing_frame)
+		
+	# 	snake_threshold = 235
+	# 	enemy_c = [255,0,0]
+	# 	me_c = [0,255,0]
+	# 	food_c = [0,0,255]
+	# 	frame[:,:,:] = 0
+	# 	me_label = np.bincount(labeled[145:155,245:255].flatten().astype(int))[1:]
+	# 	if len(me_label)>0:
+	# 		me_label = np.argmax(me_label) + 1
+	# 	else:
+	# 		me_label = -1
+	# 	for i in range(nr_objects):
+	# 		label = i+1
+	# 		size = np.count_nonzero(labeled[labeled==label])
+	# 		if size<snake_threshold:
+	# 			frame[labeled==label] = food_c
+	# 		elif me_label  == label:
+	# 			frame[labeled==label] = me_c
+	# 		else:
+	# 		   frame[labeled==label] = enemy_c
+	# 	return [frame]
+
+def create_slither_env(state_type):
 	env = gym.make('internet.SlitherIO-v0')
 	env = Vision(env)
 
@@ -224,7 +319,7 @@ def create_slither_env(state_type, state_size):
 	env = CropScreen(env, 300, 500, 84, 18)
 	env = DiscreteToFixedKeysVNCActions(env, ['left', 'right', 'space', 'left space', 'right space'])
 	env = EpisodeID(env)
-	env = RenderWrapper(env, state_type, state_size)
+	env = RenderWrapper(env, state_type)
 	env = Unvectorize(env)
 	return env
 
