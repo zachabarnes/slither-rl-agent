@@ -8,10 +8,10 @@ import tensorflow as tf
 import tensorflow.contrib.layers as layers
 
 class Network(object):
-	def __init__(self, config, num_actions, state_size):
-		self.config = config
-		self.num_actions = num_actions
-		self.img_height,self.img_width,self.img_depth = state_size
+	def __init__(self, FLAGS):
+		self.FLAGS = FLAGS
+		self.num_actions = FLAGS.num_actions
+		self.img_height, self.img_width, self.img_depth = FLAGS.state_size
 
 	def build(self):
 		self.scope = "scope"
@@ -37,13 +37,13 @@ class Network(object):
 		# initiliaze all variables
 		self.sess.run(tf.global_variables_initializer())
 
-		# synchronise q and target_q networks
+		# synchronise q and target_q network
 		self.update_target_params()
 
-		# for saving networks weights
+		# for saving network weights
 		self.saver = tf.train.Saver()
 
-	def get_best_action(self):
+	def get_best_action(self, state):
 		action_values = self.sess.run(self.q, feed_dict={self.s: [state]})[0]
 		return np.argmax(action_values), action_values
 
@@ -51,15 +51,15 @@ class Network(object):
 		self.sess.run(self.update_target_op)
 
 	def save(self):
-		if not os.path.exists(self.config.model_output):
-			os.makedirs(self.config.model_output)
-		self.saver.save(self.sess, self.config.model_output)
+		if not os.path.exists(self.FLAGS.model_path):
+			os.makedirs(self.FLAGS.model_path)
+		self.saver.save(self.sess, self.FLAGS.model_path)
 
 	def add_placeholders_op(self):
-		self.s = tf.placeholder(tf.uint8, [None, self.img_height, self.img_width, self.img_depth*self.config.state_history])
+		self.s = tf.placeholder(tf.uint8, [None, self.img_height, self.img_width, self.img_depth*self.FLAGS.state_hist])
 		self.a = tf.placeholder(tf.int32, [None])
 		self.r = tf.placeholder(tf.float32, [None])
-		self.sp = tf.placeholder(tf.uint8, [None, self.img_height, self.img_width, self.img_depth*self.config.state_history])
+		self.sp = tf.placeholder(tf.uint8, [None, self.img_height, self.img_width, self.img_depth*self.FLAGS.state_hist])
 		self.done_mask = tf.placeholder(tf.bool, [None])
 		self.lr = tf.placeholder(tf.float32, [])
 
@@ -75,8 +75,7 @@ class Network(object):
 		self.update_target_op = tf.group(*assn_vec)
 
 	def update_step(self, t, replay_buffer, lr):
-		s_batch, a_batch, r_batch, sp_batch, done_mask_batch = replay_buffer.sample(
-			self.config.batch_size)
+		s_batch, a_batch, r_batch, sp_batch, done_mask_batch = replay_buffer.sample(self.FLAGS.batch_size)
 
 		fd = {
 			# inputs
@@ -106,7 +105,7 @@ class Network(object):
 
 	def process_state(self, state):
 		state = tf.cast(state, tf.float32)
-		state /= self.config.high
+		state /= self.FLAGS.high_val
 		return state
 
 	def add_summary(self):
@@ -138,7 +137,7 @@ class Network(object):
 			
 		# logging
 		self.merged = tf.summary.merge_all()
-		self.file_writer = tf.summary.FileWriter(self.config.output_path, self.sess.graph)
+		self.file_writer = tf.summary.FileWriter(self.FLAGS.output_path, self.sess.graph)
 
 	def add_loss_op(self):
 		raise NotImplementedError()
@@ -180,7 +179,7 @@ class DeepQ(Network):
 		self.q = self.get_q_values_op(self.proc_s, scope=self.scope, reuse=False)
 		self.target_q = self.get_q_values_op(self.proc_sp, scope=self.target_scope, reuse=False)
 
-		q_samp = self.r + self.config.gamma*(-tf.to_float(self.done_mask)+1.0)*tf.reduce_max(self.target_q,axis=1)
+		q_samp = self.r + self.FLAGS.gamma*(-tf.to_float(self.done_mask)+1.0)*tf.reduce_max(self.target_q,axis=1)
 		q_s = tf.reduce_sum(self.q * tf.one_hot(self.a, self.num_actions), axis=1)
 
 		losses = tf.square(q_samp-q_s)
@@ -191,9 +190,9 @@ class DeepQ(Network):
 		grads_and_vars = opt.compute_gradients(self.loss, var_list = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope = self.scope))
 		clipped_grads_and_vars=[]
 		clipped_grads_list=[]
-		if (self.config.grad_clip):
+		if (self.FLAGS.grad_clip):
 			for grads,var in grads_and_vars:
-				clipped_grads = tf.clip_by_norm(grads, self.config.clip_val)
+				clipped_grads = tf.clip_by_norm(grads, self.FLAGS.clip_val)
 				clipped_grads_and_vars.append((clipped_grads,var))
 				clipped_grads_list.append(clipped_grads)
 
@@ -204,15 +203,13 @@ class DeepQ(Network):
 			self.grad_norm = tf.global_norm([grads for grads, _ in grads_and_vars])
 
 	def get_q_values_op(self, state, scope, reuse=False):
-		num_actions = self.num_actions
-		out = state
 		with tf.variable_scope(scope):
 			out = layers.conv2d(inputs=state, num_outputs = 32, kernel_size=[8,8], stride=[4,4], padding="SAME", activation_fn=tf.nn.relu, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"1")
 			out = layers.conv2d(inputs=out, num_outputs = 64, kernel_size=[4,4], stride=[2,2], padding="SAME", activation_fn=tf.nn.relu, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"2")
 			out = layers.conv2d(inputs=out, num_outputs = 64, kernel_size=[3,3], stride=[1,1], padding="SAME", activation_fn=tf.nn.relu, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"3")
 			out = layers.flatten(out, scope=scope)
 			out = layers.fully_connected(inputs=out, num_outputs = 512, activation_fn=tf.nn.relu, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"4")
-			out = layers.fully_connected(inputs=out, num_outputs = num_actions, activation_fn = None, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"5")
+			out = layers.fully_connected(inputs=out, num_outputs = self.num_actions, activation_fn = None, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"5")
 		return out
 
 class DeepAC(Network):

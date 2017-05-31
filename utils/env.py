@@ -127,8 +127,10 @@ class RenderWrapper(vectorized.Wrapper):
 	Wrapper for slither to apply preprocessing
 	Stores the state into variable self.obs
 	"""
-	def __init__(self, env):
+	def __init__(self, env, state_type, state_size):
 		self.viewer = None
+		self.state_type = state_type
+		self.state_size = state_size
 		super(RenderWrapper, self).__init__(env)
 
 	def resize(self):
@@ -211,7 +213,7 @@ def slither_process(frame):
 		   frame[labeled==label] = enemy_c
 	return [frame]
 
-def create_slither_env():
+def create_slither_env(state_type, state_size):
 	env = gym.make('internet.SlitherIO-v0')
 	env = Vision(env)
 
@@ -222,7 +224,7 @@ def create_slither_env():
 	env = CropScreen(env, 300, 500, 84, 18)
 	env = DiscreteToFixedKeysVNCActions(env, ['left', 'right', 'space', 'left space', 'right space'])
 	env = EpisodeID(env)
-	env = RenderWrapper(env)
+	env = RenderWrapper(env, state_type, state_size)
 	env = Unvectorize(env)
 	return env
 
