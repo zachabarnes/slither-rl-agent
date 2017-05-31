@@ -6,6 +6,7 @@ import os
 import gym
 import universe
 import argparse
+import network 
 
 from utils.env import create_slither_env
 
@@ -34,7 +35,7 @@ if __name__ == '__main__':
 	FLAGS = parser.parse_args()
 
 	# Set constants
-	FLAGS.output_dir   = "/results/"      + FLAGS.netowrk_name
+	FLAGS.output_dir   = "/results/"      + FLAGS.network_name
 	FLAGS.model_path   = FLAGS.output_dir + "/model.weights/"
 	FLAGS.log_path     = FLAGS.output_dir + "/log.txt"
 	FLAGS.plot_path    = FLAGS.output_dir + "/scores.png"

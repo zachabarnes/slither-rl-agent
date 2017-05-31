@@ -213,14 +213,65 @@ class DeepQ(Network):
 		return out
 
 class DeepAC(Network):
+		
+	def add_placeholders_op(self):
+		self.s = tf.placeholder(tf.uint8, [None, self.img_height, self.img_width, self.img_depth*self.FLAGS.state_hist])
+		self.a = tf.placeholder(tf.int32, [None])
+		self.r = tf.placeholder(tf.float32, [None])
+		self.criticBest = tf.placeholder(tf.float32, [None])
+		self.actorDiff = tf.placeholder(tf.float32, [None])
+		self.sp = tf.placeholder(tf.uint8, [None, self.img_height, self.img_width, self.img_depth*self.FLAGS.state_hist])
+		self.done_mask = tf.placeholder(tf.bool, [None])
+		self.lr = tf.placeholder(tf.float32, [])
 
 	def add_loss_op(self):
-		#need implementation
-		pass
+		self.actor, self.critic = self.get_actor_critic_values(self.proc_s, scope=self.scope, reuse=False)
+		self.criticLoss = tf.reduce_mean(tf.square(self.critic-self.criticBest))
+		self.actorLoss = tf.reduce_mean(tf.square(self.actor[self.a]))
 
 	def add_optimizer_op(self, scope):
 		#need implementation
 		pass
 
+	def get_actor_critic_values(self, state, scope, reuse=False):
+		with tf.variable_scope(scope):
+			out = layers.conv2d(inputs=state, num_outputs = 32, kernel_size=[8,8], stride=[4,4], padding="SAME", activation_fn=tf.nn.relu, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"1")
+			out = layers.conv2d(inputs=out, num_outputs = 64, kernel_size=[4,4], stride=[2,2], padding="SAME", activation_fn=tf.nn.relu, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"2")
+			out = layers.conv2d(inputs=out, num_outputs = 64, kernel_size=[3,3], stride=[1,1], padding="SAME", activation_fn=tf.nn.relu, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"3")
+			out = layers.flatten(out, scope=scope)
+			out = layers.fully_connected(inputs=out, num_outputs = 512, activation_fn=tf.nn.relu, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"4")
+			out1 = layers.fully_connected(inputs=out, num_outputs = self.num_actions, activation_fn = None, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"5")
+			out2 = layers.fully_connected(inputs=out, num_outputs = 1, activation_fn = None, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"6")
+		return out1, out2
 
 
+	def update_step(self, t, replay_buffer, lr):
+		s_batch, a_batch, r_batch, sp_batch, done_mask_batch, criticBest_batch, actorDiff_batch = replay_buffer.sample(self.FLAGS.batch_size)
+
+		fd = {
+			# inputs
+			self.s: s_batch,
+			self.a: a_batch,
+			self.r: r_batch,
+			self.sp: sp_batch, 
+			self.done_mask: done_mask_batch,
+			self.lr: lr,
+			self.criticBest: criticBest_batch,
+			self.actorDiff: actorDiff_batch,
+			# extra info
+			self.avg_reward_placeholder: self.avg_reward, 
+			self.max_reward_placeholder: self.max_reward, 
+			self.std_reward_placeholder: self.std_reward, 
+			self.avg_q_placeholder: self.avg_q, 
+			self.max_q_placeholder: self.max_q, 
+			self.std_q_placeholder: self.std_q, 
+			self.eval_reward_placeholder: self.eval_reward, 
+		}
+
+		output_list = [self.loss, self.grad_norm, self.merged, self.train_op]
+		loss_eval, grad_norm_eval, summary, _ = self.sess.run(output_list, feed_dict=fd)
+
+		# tensorboard stuff
+		self.file_writer.add_summary(summary, t)
+		
+		return loss_eval, grad_norm_eval

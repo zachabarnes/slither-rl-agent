@@ -167,8 +167,11 @@ class Model(object):
 		scores_eval += [self.evaluate(self.env, self.FLAGS.num_test)]
 		export_plot(scores_eval, "Scores", self.FLAGS.plot_path)
 
-	def evaluate(self, env=self.env, num_episodes=self.FLAGS.num_test):
-
+	def evaluate(self, env=None, num_episodes=None):
+		if env == None:
+			env = self.env
+		if num_episodes == None:
+			num_episodes = self.FLAGS.num_test
 		# Use  memory to play
 		replay_buffer = ReplayBuffer(self.FLAGS.state_hist, self.FLAGS.state_hist)
 		rewards = []
