@@ -16,12 +16,14 @@ from collections import deque
 from utils.general import get_logger, Progbar, export_plot
 from utils.replay_buffer import ReplayBuffer
 
+import network
+
 class Model(object):
 	def __init__(self, env, record_env, network, FLAGS, logger=None):
 		# Directory for training outputs
 		if not os.path.exists(FLAGS.output_dir):
 			os.makedirs(FLAGS.output_dir)
-
+			
 		# Store hyper params
 		self.FLAGS 		 = FLAGS
 		self.env 		 = env
@@ -47,7 +49,7 @@ class Model(object):
 		self.avg_q = 0
 		self.max_q = 0
 		self.std_q = 0
-
+		
 		self.eval_reward = 0.
 
 	def update_averages(self, rewards, max_q_values, q_values, scores_eval):
@@ -63,8 +65,8 @@ class Model(object):
 
 	def update_logs(self, t, loss_eval, rewards, epsilon, grad_eval, lr):
 		if len(rewards) > 0:
-			prog.update (t + 1, exact=[("Loss", loss_eval), ("Avg R", self.avg_reward),
-						("Max R", np.max(rewards)), ("eps", epsilon),
+			prog.update (t + 1, exact=[("Loss", loss_eval), ("Avg R", self.avg_reward), 
+						("Max R", np.max(rewards)), ("eps", epsilon), 
 						("Grads", grad_eval), ("Max Q", self.max_q), ("lr", lr)])
 
 	def train(self, exp_schedule, lr_schedule):
@@ -79,7 +81,7 @@ class Model(object):
 		loss_eval = grad_eval = 0
 		scores_eval = [] # list of scores computed at iteration time
 		scores_eval += [self.evaluate(self.env, self.FLAGS.num_test)]
-
+		
 		prog = Progbar(target=self.FLAGS.train_steps)
 
 		# Train for # of train steps
@@ -117,7 +119,7 @@ class Model(object):
 				# Stop at end of episode
 				if done: break
 
-			# Learn using replay
+			# Learn using replay 
 			while True:
 				t += 1
 				ep_len -= 1
@@ -159,17 +161,14 @@ class Model(object):
 			# Update episodic rewards
 			rewards.append(total_reward)
 
-		# End of training
+		# End of training 
 		self.logger.info("- Training done.")
 		self.network.save()
 		scores_eval += [self.evaluate(self.env, self.FLAGS.num_test)]
 		export_plot(scores_eval, "Scores", self.FLAGS.plot_path)
 
-	def evaluate(self, env=None, num_episodes=None):
-		if env == None:
-			env = self.env
-		if num_episodes == None:
-			num_episodes = self.FLAGS.num_test
+	def evaluate(self, env=self.env, num_episodes=self.FLAGS.num_test):
+
 		# Use  memory to play
 		replay_buffer = ReplayBuffer(self.FLAGS.state_hist, self.FLAGS.state_hist)
 		rewards = []
@@ -197,7 +196,7 @@ class Model(object):
 				if done: break
 
 			# updates to perform at the end of an episode
-			rewards.append(total_reward)
+			rewards.append(total_reward)     
 
 		avg_reward = np.mean(rewards)
 		sigma_reward = np.sqrt(np.var(rewards) / len(rewards))
@@ -223,3 +222,4 @@ class Model(object):
 
 		# Record one game at the end
 		if self.FLAGS.record: self.record()
+		
