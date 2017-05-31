@@ -37,7 +37,7 @@ pip install -e .
 pip install -r requirements.txt
 ```
 
-- Install [docker](https://www.digitalocean.com/community/tutorials/how-to-install-and-use-docker-on-ubuntu-16-04) for ubuntu 16.04 **Make sure to follow step 2**
+- Install [docker](https://www.digitalocean.com/community/tutorials/how-to-install-and-use-docker-on-ubuntu-16-04) for ubuntu 16.04 **MAKE SURE TO DO STEP 2 AS WELL**
 
 - Install extra packages
 ```
@@ -46,10 +46,15 @@ conda install opencv
 
 - Restart VM
 
+- OPTIONAL: clone RattLe source code
+```
+git clone https://github.com/zabarnes/RattLe.git
+```
+
 ### Test installation
 
 Run the test agent script
 ```
 python test.py
 ```
-you should see "yay" on the command line
+you should see a tiny rendering of the game or "yay" on the command line.
