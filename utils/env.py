@@ -145,11 +145,18 @@ class RenderWrapper(vectorized.Wrapper):
         self.viewer = None
       return
 
-    if self.state_type != 'features':
+    if self.state_type == 'shapes':
+      gray_img = self.proc_obs[0]*100
+      proc_obs = np.concatenate((gray_img, gray_img, gray_img),2)
+      img = np.concatenate((self.orig_obs[0],proc_obs),1)
+
+    elif self.state_type == 'colors':
       img = np.concatenate((self.orig_obs[0],self.proc_obs[0]),1)
+
     else:
       img = self.orig_obs[0]
 
+    img = img.astype(np.uint8)
     if mode == 'rgb_array':
       return img
     elif mode == 'human':
@@ -271,5 +278,4 @@ def create_slither_env(state_type):
   env = DiscreteToFixedKeysVNCActions(env, ['left', 'right', 'space', 'left space', 'right space'])
   env = EpisodeID(env)
   env = RenderWrapper(env, state_type)
-  env = Unvectorize(env)
   return env

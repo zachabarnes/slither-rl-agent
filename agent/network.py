@@ -74,7 +74,7 @@ class Network(object):
 
     self.update_target_op = tf.group(*assn_vec)
 
-  def update_step(self, t, replay_buffer, lr):
+  def update_step(self, t, replay_buffer, lr, summary):
     s_batch, a_batch, r_batch, sp_batch, done_mask_batch = replay_buffer.sample(self.FLAGS.batch_size)
 
     fd = {
@@ -86,13 +86,13 @@ class Network(object):
       self.done_mask: done_mask_batch,
       self.lr: lr,
       # extra info
-      self.avg_reward_placeholder: self.avg_reward,
-      self.max_reward_placeholder: self.max_reward,
-      self.std_reward_placeholder: self.std_reward,
-      self.avg_q_placeholder: self.avg_q,
-      self.max_q_placeholder: self.max_q,
-      self.std_q_placeholder: self.std_q,
-      self.eval_reward_placeholder: self.eval_reward,
+      self.avg_reward_placeholder: summary.avg_reward,
+      self.max_reward_placeholder: summary.max_reward,
+      self.std_reward_placeholder: summary.std_reward,
+      self.avg_q_placeholder: summary.avg_q,
+      self.max_q_placeholder: summary.max_q,
+      self.std_q_placeholder: summary.std_q,
+      self.eval_reward_placeholder: summary.eval_reward,
     }
 
     output_list = [self.loss, self.grad_norm, self.merged, self.train_op]
