@@ -275,7 +275,7 @@ def create_slither_env(state_type):
 
   env = BlockingReset(env)
   env = CropScreen(env, 300, 500, 84, 18)
-  env = DiscreteToFixedKeysVNCActions(env, ['left', 'right', 'space', 'left space', 'right space'])
+  env = DiscreteToFixedKeysVNCActions(env, ['left', 'right'])#['left', 'right', 'space', 'left space', 'right space'])
   env = EpisodeID(env)
   env = RenderWrapper(env, state_type)
   return env

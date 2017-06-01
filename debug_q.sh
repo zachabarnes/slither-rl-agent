@@ -1,5 +1,4 @@
 #!/bin/sh
 export OPENAI_REMOTE_VERBOSE=0
-#tensorboard --logdir=results/
 cd agent
-python run.py -tst 1 -rec False
+python run.py -tst 1 -rec False -lst 10 -bat 1
