@@ -234,6 +234,7 @@ class SlitherProcessor(object):
     return frame
 
   def extract_colors(self, frame, label):
+    label = label[:,:,0]
     snake_threshold = 235
     enemy_c = [255,0,0]
     me_c = [0,255,0]
@@ -245,14 +246,14 @@ class SlitherProcessor(object):
     else:
       me_label = -1
     for i in range(self.nr_objects):
-      label = i+1
-      size = np.count_nonzero(labeled[labeled==label])
+      cur_label = i+1
+      size = np.count_nonzero(label[label==cur_label])
       if size<snake_threshold:
-        frame[labeled==label] = food_c
-      elif me_label  == label:
-        frame[labeled==label] = me_c
+        frame[label==cur_label] = food_c
+      elif me_label==cur_label:
+        frame[label==cur_label] = me_c
       else:
-        frame[labeled==label] = enemy_c
+        frame[label==cur_label] = enemy_c
     return frame
 
   def extract_features(self, frame):
