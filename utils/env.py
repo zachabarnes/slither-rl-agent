@@ -45,7 +45,7 @@ class SimpleImageViewer(object):
 		else:
 			raise NotImplementedError
 		image = pyglet.image.ImageData(self.width, self.height, "RGB", arr.tobytes())
-
+		
 		self.window.clear()
 		self.window.switch_to()
 		self.window.dispatch_events()
@@ -176,7 +176,7 @@ class SlitherProcessor(object):
 		if self.state_type == 'features':
 			self.state_size = [8,1,1]
 			self.zoom = (1,1,1)
-			self.high_val = 1.0
+			self.high_val = 1.0 
 
 		elif self.state_type == 'colors':
 			self.state_size = [74,124,3]
@@ -225,7 +225,7 @@ class SlitherProcessor(object):
 	def remove_background(self,frame):
 		abs_t = 115
 		frame[(frame[:,:,0]<abs_t)*(frame[:,:,1]<abs_t)*(frame[:,:,2]<abs_t)] = 0
-
+		
 		rel_t = 30
 		avg_pix = np.mean(frame,2)
 		diff = np.abs(avg_pix-frame[:,:,0]) + np.abs(avg_pix-frame[:,:,1]) + np.abs(avg_pix-frame[:,:,2])
@@ -275,18 +275,18 @@ class SlitherProcessor(object):
 	# 	frame = frame[0]
 	# 	abs_t = 115
 	# 	frame[(frame[:,:,0]<abs_t)*(frame[:,:,1]<abs_t)*(frame[:,:,2]<abs_t)] = 0
-
+		
 	# 	rel_t = 30
 	# 	avg_pix = np.mean(frame,2)
 	# 	diff = np.abs(avg_pix-frame[:,:,0]) + np.abs(avg_pix-frame[:,:,1]) + np.abs(avg_pix-frame[:,:,2])
 	# 	frame[:,:,:] = 255
 	# 	frame[diff<rel_t] = 0
-
+		
 	# 	sing_frame = ndimage.grey_erosion(frame[:,:,1], size=(2,2))
 	# 	blur_radius = .35
 	# 	sing_frame = ndimage.gaussian_filter(sing_frame, blur_radius)
 	# 	labeled, nr_objects = ndimage.label(sing_frame)
-
+		
 	# 	snake_threshold = 235
 	# 	enemy_c = [255,0,0]
 	# 	me_c = [0,255,0]
@@ -314,7 +314,7 @@ def create_slither_env(state_type):
 
 	#Because logging is annoying
 	#env = Logger(env)
-
+	
 	env = BlockingReset(env)
 	env = CropScreen(env, 300, 500, 84, 18)
 	env = DiscreteToFixedKeysVNCActions(env, ['left', 'right', 'space', 'left space', 'right space'])
