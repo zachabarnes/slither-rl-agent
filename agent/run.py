@@ -13,6 +13,7 @@ from universe.wrappers import Unvectorize
 
 from schedule import LinearExploration, LinearSchedule
 from modelAC import ModelAC
+from model import Model
 
 parser = argparse.ArgumentParser(description="Run commands")
 

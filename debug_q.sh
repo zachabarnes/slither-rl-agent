@@ -2,4 +2,4 @@
 export OPENAI_REMOTE_VERBOSE=0
 #tensorboard --logdir=results/
 cd agent
-python run.py -tst 2
+python run.py -tst 1 -rec False
