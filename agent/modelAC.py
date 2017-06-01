@@ -14,21 +14,32 @@ from gym import wrappers
 from collections import deque
 
 from utils.general import get_logger, Progbar, export_plot
-from utils.replay_buffer import ReplayBufferAC
+from utils.replay_bufferAC import ReplayBufferAC
 
-import network
+class Summary(object):
+  def __init__(self):
+    self.avg_reward = 0.
+    self.max_reward = 0.
+    self.std_reward = 0
+
+    self.avg_q = 0
+    self.max_q = 0
+    self.std_q = 0
+
+    self.eval_reward = 0.
 
 class ModelAC(object):
   def __init__(self, env, record_env, network, FLAGS, logger=None):
     # Directory for training outputs
-    if not os.path.exists(FLAGS.output_dir):
-      os.makedirs(FLAGS.output_dir)
+    if not os.path.exists(FLAGS.output_path):
+      os.makedirs(FLAGS.output_path)
 
     # Store hyper params
-    self.FLAGS     = FLAGS
-    self.env     = env
+    self.FLAGS       = FLAGS
+    self.env         = env
     self.record_env  = record_env
     self.network     = network
+    self.summary     = Summary()
 
     # Setup Logger
     if logger is None: self.logger = get_logger(FLAGS.log_path)
@@ -42,32 +53,32 @@ class ModelAC(object):
     return lambda state: self.network.get_best_action(state)[0]
 
   def init_averages(self):
-    self.avg_reward = 0.
-    self.max_reward = 0.
-    self.std_reward = 0
+    self.summary.avg_reward = 0.
+    self.summary.max_reward = 0.
+    self.summary.std_reward = 0
 
-    self.avg_q = 0
-    self.max_q = 0
-    self.std_q = 0
+    self.summary.avg_q = 0
+    self.summary.max_q = 0
+    self.summary.std_q = 0
 
-    self.eval_reward = 0.
+    self.summary.eval_reward = 0.
 
   def update_averages(self, rewards, max_q_values, q_values, scores_eval):
-    self.avg_reward = np.mean(rewards)
-    self.max_reward = np.max(rewards)
-    self.std_reward = np.sqrt(np.var(rewards) / len(rewards))
+    self.summary.avg_reward = np.mean(rewards)
+    self.summary.max_reward = np.max(rewards)
+    self.summary.std_reward = np.sqrt(np.var(rewards) / len(rewards))
 
-    self.max_q      = np.mean(max_q_values)
-    self.avg_q      = np.mean(q_values)
-    self.std_q      = np.sqrt(np.var(q_values) / len(q_values))
+    self.summary.max_q      = np.mean(max_q_values)
+    self.summary.avg_q      = np.mean(q_values)
+    self.summary.std_q      = np.sqrt(np.var(q_values) / len(q_values))
 
-    if len(scores_eval) > 0: self.eval_reward = scores_eval[-1]
+    if len(scores_eval) > 0: self.summary.eval_reward = scores_eval[-1]
 
   def update_logs(self, t, loss_eval, rewards, epsilon, grad_eval, lr):
     if len(rewards) > 0:
-      prog.update (t + 1, exact=[("Loss", loss_eval), ("Avg R", self.avg_reward),
+      self.prog.update (t + 1, exact=[("Loss", loss_eval), ("Avg R", self.summary.avg_reward),
             ("Max R", np.max(rewards)), ("eps", epsilon),
-            ("Grads", grad_eval), ("Max Q", self.max_q), ("lr", lr)])
+            ("Grads", grad_eval), ("Max Q", self.summary.max_q), ("lr", lr)])
 
   def train(self, exp_schedule, lr_schedule):
     # Initialize replay buffer and variables
@@ -82,7 +93,7 @@ class ModelAC(object):
     scores_eval = [] # list of scores computed at iteration time
     scores_eval += [self.evaluate(self.env, self.FLAGS.num_test)]
 
-    prog = Progbar(target=self.FLAGS.train_steps)
+    self.prog = Progbar(target=self.FLAGS.train_steps)
 
     # Train for # of train steps
     while t < self.FLAGS.train_steps:
@@ -92,9 +103,7 @@ class ModelAC(object):
       reward = 0
       # Run for 1 episode and update the buffer
       while True:
-        ep_len += 1
-
-        orig_val = self.criticNet.calcState(state)
+        orig_val = self.network.calcState(state)
         # replay memory stuff
         idx     = replay_buffer.store_frame(state)
         q_input = replay_buffer.encode_recent_observation()
@@ -109,7 +118,7 @@ class ModelAC(object):
 
         # perform action in env
         new_state, new_reward, done, info = self.env.step(action)
-        new_val = self.criticNet.calcState(new_state)
+        new_val = self.network.calcState(new_state)
 
 
         if not done: # Non-terminal state.
@@ -161,8 +170,8 @@ class ModelAC(object):
       old_t = t
       while True:
         t += 1
-        if ((t > self.FLAGS.learning_start) and (t % self.FLAGS.learn_every == 0)):
-          loss_eval, grad_eval = self.network.update_critic_step(t, replay_buffer, lr)
+        if ((t > self.FLAGS.learn_start) and (t % self.FLAGS.learn_every == 0)):
+          loss_eval, grad_eval = self.network.update_critic_step(t, replay_buffer, lr_schedule.epsilon, self.summary)
       # Learn using replay
       t = old_t
       while True:
@@ -170,24 +179,23 @@ class ModelAC(object):
         ep_len -= 1
 
         # Make train step if necessary
-        if ((t > self.FLAGS.learning_start) and (t % self.FLAGS.learn_every == 0)):
-          loss_eval, grad_eval = self.network.update_actor_step(t, replay_buffer, lr)
+        if ((t > self.FLAGS.learn_start) and (t % self.FLAGS.learn_every == 0)):
+          loss_eval, grad_eval = self.network.update_actor_step(t, replay_buffer, lr_schedule.epsilon, self.summary)
           exp_schedule.update(t)
           lr_schedule.update(t)
 
         # Update logs if necessary
-        if ((t > self.FLAGS.learning_start) and (t % self.FLAGS.log_every == 0)):
+        if ((t > self.FLAGS.learn_start) and (t % self.FLAGS.log_every == 0)):
           self.update_averages(rewards, max_q_values, q_values, scores_eval)
           self.update_logs(t, loss_eval, rewards, exp_schedule.epsilon, grad_eval, lr_schedule.epsilon)
 
         # Update logs if necessary
-        elif (t < self.FLAGS.learning_start) and (t % self.FLAGS.log_every == 0):
-          sys.stdout.write("\rPopulating the memory {}/{}...".format(t, self.FLAGS.learning_start))
+        elif (t < self.FLAGS.learn_start) and (t % self.FLAGS.log_every == 0):
+          sys.stdout.write("\rPopulating the memory {}/{}...".format(t, self.FLAGS.learn_start))
           sys.stdout.flush()
 
-        if ((t > self.FLAGS.learning_start) and (t % self.FLAGS.check_every == 0)):
+        if ((t > self.FLAGS.learn_start) and (t % self.FLAGS.check_every == 0)):
           # Evaluate current model
-          self.logger.info("Evaluating...")
           scores_eval += [self.evaluate(self.env, self.FLAGS.num_test)]
 
           # Save current Model
@@ -195,7 +203,6 @@ class ModelAC(object):
 
           # Record video of current model
           if self.FLAGS.record:
-            self.logger.info("Recording...")
             self.record()
 
         if ep_len <= 0 or t >= self.FLAGS.train_steps: break
@@ -209,11 +216,11 @@ class ModelAC(object):
     scores_eval += [self.evaluate(self.env, self.FLAGS.num_test)]
     export_plot(scores_eval, "Scores", self.FLAGS.plot_path)
 
-  def evaluate(self, env=self.env, num_episodes=self.FLAGS.num_test):
-
-    # Use  memory to play
+  def evaluate(self, env, num_episodes):
     replay_buffer = ReplayBuffer(self.FLAGS.state_hist, self.FLAGS.state_hist)
     rewards = []
+
+    if num_episodes > 1: self.logger.info("Evaluating...")
 
     for i in range(num_episodes):
       total_reward = 0
@@ -250,6 +257,7 @@ class ModelAC(object):
     return avg_reward
 
   def record(self):
+    self.logger.info("Recording...")
     self.evaluate(self.record_env, 1)
 
   def run(self, exp_schedule, lr_schedule):

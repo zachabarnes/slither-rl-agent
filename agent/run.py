@@ -12,12 +12,13 @@ from utils.env import create_slither_env
 from universe.wrappers import Unvectorize
 
 from schedule import LinearExploration, LinearSchedule
-from model import Model
+from modelAC import ModelAC
 
 parser = argparse.ArgumentParser(description="Run commands")
 
 # Model params
-parser.add_argument('-net', '--network_type', type=str,  default="deep_q",                help="Network type (linear_q, feedforward_q, deep_q")
+parser.add_argument('-net', '--network_type', type=str,  default="deepAC",                help="Network type (linear_q, feedforward_q, deep_q")
+parser.add_argument('-mod', '--model_type',   type=str,  default="ACmodel",            help="Network type (linear_q, feedforward_q, deep_q")
 parser.add_argument('-typ', '--state_type',   type=str,  default="shapes",                help="State type (features, colors, shapes)")
 parser.add_argument('-rem', '--remotes',      type=int,  default=1,                       help='Number of remotes to run')
 parser.add_argument('-env', '--env-id',       type=str,  default="internet.SlitherIO-v0", help="Environment id")
@@ -86,6 +87,9 @@ if __name__ == '__main__':
   elif FLAGS.network_type == 'deep_q':
     network = network.DeepQ(FLAGS)
 
+  elif FLAGS.network_type == 'deepAC':
+    network = network.DeepAC(FLAGS)
+
   else: raise NotImplementedError
 
   # Initialize exploration strategy
@@ -95,5 +99,9 @@ if __name__ == '__main__':
   lr_schedule  = LinearSchedule(FLAGS.learning_rate, FLAGS.lr_end, FLAGS.lr_nsteps)
 
   # train model
-  model = Model(env, record_env, network, FLAGS)
+  model = None
+  if FLAGS.model_type == 'deepQmodel':
+    model = Model(env, record_env, network, FLAGS)
+  else:
+    model = ModelAC(env, record_env, network, FLAGS)
   model.run(exp_schedule, lr_schedule)

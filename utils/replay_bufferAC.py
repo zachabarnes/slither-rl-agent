@@ -12,7 +12,7 @@ def sample_n_unique(sampling_f, n):
       res.append(candidate)
   return res
 
-class ReplayBuffer(object):
+class ReplayBufferAC(object):
   """
   Taken from Berkeley's Assignment
   """
