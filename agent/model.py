@@ -76,7 +76,7 @@ class Model(object):
 
   def update_logs(self, t, loss_eval, rewards, epsilon, grad_eval, lr):
     if len(rewards) > 0:
-      prog.update (t + 1, exact=[("Loss", loss_eval), ("Avg R", self.summary.avg_reward),
+      self.prog.update (t + 1, exact=[("Loss", loss_eval), ("Avg R", self.summary.avg_reward),
             ("Max R", np.max(rewards)), ("eps", epsilon),
             ("Grads", grad_eval), ("Max Q", self.summary.max_q), ("lr", lr)])
 
@@ -93,7 +93,7 @@ class Model(object):
     scores_eval = [] # list of scores computed at iteration time
     scores_eval += [self.evaluate(self.env, self.FLAGS.num_test)]
 
-    prog = Progbar(target=self.FLAGS.train_steps)
+    self.prog = Progbar(target=self.FLAGS.train_steps)
 
     # Train for # of train steps
     while t < self.FLAGS.train_steps:
