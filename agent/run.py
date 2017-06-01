@@ -6,7 +6,7 @@ import os
 import gym
 import universe
 import argparse
-import network 
+import network
 
 from utils.env import create_slither_env
 
@@ -98,9 +98,4 @@ if __name__ == '__main__':
 
 	# train model
 	model = Model(env, record_env, network, FLAGS)
-	Model.
 	model.run(exp_schedule, lr_schedule)
-
-
-
-
