@@ -53,6 +53,11 @@ class Network(object):
   def save(self):
     if not os.path.exists(self.FLAGS.model_path):
       os.makedirs(self.FLAGS.model_path)
+    self.saver.save(self.sess, self.FLAGS.model_path, max_to_keep=2)
+
+  def load(self, checkpoint):
+    if not os.path.exists(self.FLAGS.model_path):
+      os.makedirs(self.FLAGS.model_path)
     self.saver.save(self.sess, self.FLAGS.model_path)
 
   def add_placeholders_op(self):
@@ -329,7 +334,7 @@ class DeepAC(Network):
     else:
       self.train_op_actor = opt.apply_gradients(grads_and_vars)
       self.grad_norm_actor = tf.global_norm([grads for grads, _ in grads_and_vars])
-    
+
     opt = tf.train.AdamOptimizer(self.lr)
     var_list = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope = self.scope + "_base")
     var_list.extend(tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope = self.scope + "_critic"))

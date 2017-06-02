@@ -23,7 +23,7 @@ parser.add_argument('-mod', '--model_type',   type=str,  default="q",           
 parser.add_argument('-typ', '--state_type',   type=str,  default="shapes",                help="State type (features, colors, shapes)")
 parser.add_argument('-rem', '--remotes',      type=int,  default=1,                       help='Number of remotes to run')
 parser.add_argument('-env', '--env-id',       type=str,  default="internet.SlitherIO-v0", help="Environment id")
-parser.add_argument('-rec', '--record',       type=bool, default=True,                    help="Record videos during train")
+parser.add_argument('-rec', '--record',       type=bool, default=False,                    help="Record videos during train")
 parser.add_argument('-buf', '--buffer_size',  type=int,  default=50000,                   help="Size of replay buffer")
 
 # Train Params
@@ -49,9 +49,9 @@ if __name__ == '__main__':
   FLAGS.clip_val     = 10
 
 
-  FLAGS.check_every  = FLAGS.train_steps/20
+  FLAGS.check_every  = FLAGS.train_steps/10
   FLAGS.log_every    = 500
-  FLAGS.target_every = 200
+  FLAGS.target_every = 800
   FLAGS.learn_every  = 1
 
   FLAGS.gamma        = 0.99
@@ -64,7 +64,7 @@ if __name__ == '__main__':
   FLAGS.state_hist   = 4
 
   # Make rl environment
-  #universe.configure_logging(False)
+  universe.configure_logging(False)
   env = create_slither_env(FLAGS.state_type)
 
   FLAGS.state_size   = env.state_size
@@ -75,10 +75,13 @@ if __name__ == '__main__':
   env.configure(fps=FLAGS.fps, remotes=FLAGS.remotes, start_timeout=15 * 60, vnc_driver='go', vnc_kwargs={'encoding': 'tight', 'compress_level': 0, 'fine_quality_level': 50})
 
   # Make recording env
-  record_env = create_slither_env(FLAGS.state_type)
-  record_env = Unvectorize(record_env)
-  record_env.configure(fps=30, remotes=1, start_timeout=15 * 60, vnc_driver='go', vnc_kwargs={'encoding': 'tight', 'compress_level': 0, 'fine_quality_level': 50})
-  record_env = gym.wrappers.Monitor(record_env, FLAGS.record_path, video_callable=lambda x: True, resume=True)
+  if FLAGS.record:
+    record_env = create_slither_env(FLAGS.state_type)
+    record_env = Unvectorize(record_env)
+    record_env.configure(fps=30, remotes=1, start_timeout=15 * 60, vnc_driver='go', vnc_kwargs={'encoding': 'tight', 'compress_level': 0, 'fine_quality_level': 50})
+    record_env = gym.wrappers.Monitor(record_env, FLAGS.record_path, video_callable=lambda x: True, resume=True)
+  else:
+    record_env = None
 
   # Create network
   if FLAGS.network_type == 'linear_q':
@@ -109,4 +112,9 @@ if __name__ == '__main__':
     model = ModelAC(env, record_env, network, FLAGS)
   else:
     raise NotImplementedError
-  model.run(exp_schedule, lr_schedule)
+
+  try:
+    model.run(exp_schedule, lr_schedule)
+  except Exception as e:
+    print(e)
+    network.save()
