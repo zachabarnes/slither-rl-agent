@@ -130,6 +130,9 @@ class Model(object):
         # Stop at end of episode
         if done: break
 
+      #Store episodic rewards
+      rewards.append(total_reward)
+
       # Learn using replay
       while True:
         t += 1
@@ -145,7 +148,7 @@ class Model(object):
           self.network.update_target_params()
 
         # Update logs if necessary
-        if ((t > self.FLAGS.learn_start) and (t % self.FLAGS.log_every == 0)):
+        if ((t > self.FLAGS.learn_start) and (t % self.FLAGS.log_every == 0) and (len(rewards)>0)):
           self.update_averages(rewards, max_q_values, q_values, scores_eval)
           self.update_logs(t, loss_eval, rewards, exp_schedule.epsilon, grad_eval, lr_schedule.epsilon)
 
@@ -159,16 +162,13 @@ class Model(object):
           scores_eval += [self.evaluate(self.env, self.FLAGS.num_test)]
 
           # Save current Model
-          self.network.save()
+          #self.network.save()
 
           # Record video of current model
           if self.FLAGS.record:
             self.record()
 
         if ep_len <= 0 or t >= self.FLAGS.train_steps: break
-
-      # Update episodic rewards
-      rewards.append(total_reward)
 
     # End of training
     self.logger.info("- Training done.")

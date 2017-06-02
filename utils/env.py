@@ -175,13 +175,13 @@ class SlitherProcessor(object):
       self.high_val = 1.0
 
     elif self.state_type == 'colors':
-      self.state_size = [74,124,3]
-      self.zoom = (.25,.25,1)
+      self.state_size = [30,50,3]
+      self.zoom = (.1,.1,1)
       self.high_val = 255.0
 
     elif self.state_type == 'shapes':
-      self.state_size = [74,124,1]
-      self.zoom = (.25,.25,1)
+      self.state_size = [30,50,1]
+      self.zoom = (.1,.1,1)
       self.high_val = 1.0
 
     else: NotImplementedError
@@ -198,7 +198,7 @@ class SlitherProcessor(object):
 
   def resize(self, frames):
     if self.state_type != 'features':
-      return [ndimage.zoom(f, self.zoom, order=2)[1:,1:,:] for f in frames]
+      return [ndimage.zoom(f, self.zoom, order=2) for f in frames]
     else:
       return frames
 
@@ -275,7 +275,7 @@ def create_slither_env(state_type):
 
   env = BlockingReset(env)
   env = CropScreen(env, 300, 500, 84, 18)
-  env = DiscreteToFixedKeysVNCActions(env, ['left', 'right', 'space', 'left space', 'right space'])
+  env = DiscreteToFixedKeysVNCActions(env, ['left', 'right'])#['left', 'right', 'space', 'left space', 'right space'])
   env = EpisodeID(env)
   env = RenderWrapper(env, state_type)
   return env

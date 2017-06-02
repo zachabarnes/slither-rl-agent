@@ -18,8 +18,8 @@ from model import Model
 parser = argparse.ArgumentParser(description="Run commands")
 
 # Model params
-parser.add_argument('-net', '--network_type', type=str,  default="deepAC",                help="Network type (linear_q, feedforward_q, deep_q")
-parser.add_argument('-mod', '--model_type',   type=str,  default="ACmodel",            help="Network type (linear_q, feedforward_q, deep_q")
+parser.add_argument('-net', '--network_type', type=str,  default="deep_q",               help="Network type (linear_q, feedforward_q, deep_q, deep_ac")
+parser.add_argument('-mod', '--model_type',   type=str,  default="q",               help="Network type (q, ac)")
 parser.add_argument('-typ', '--state_type',   type=str,  default="shapes",                help="State type (features, colors, shapes)")
 parser.add_argument('-rem', '--remotes',      type=int,  default=1,                       help='Number of remotes to run')
 parser.add_argument('-env', '--env-id',       type=str,  default="internet.SlitherIO-v0", help="Environment id")
@@ -32,13 +32,14 @@ parser.add_argument('-tst', '--num_test',     type=int,   default=10,      help=
 parser.add_argument('-bat', '--batch_size',   type=int,   default=32,      help="Batch_size")
 parser.add_argument('-lnr', '--learning_rate',type=float, default=0.00025, help="Initial learning rate")
 parser.add_argument('-eps', '--epsilon',      type=float, default=1.0,     help="Initial Exploration constant (e-greedy)")
+parser.add_argument('-lst', '--learn_start',  type=int,   default=200,     help="Num ep before learning")
 
 
 if __name__ == '__main__':
   FLAGS = parser.parse_args()
 
   # Set constants
-  FLAGS.output_path   = "results/"      + FLAGS.network_type + "/" + 'run9'
+  FLAGS.output_path  = "results/"      + FLAGS.network_type
   FLAGS.model_path   = FLAGS.output_path + "/model.weights/"
   FLAGS.log_path     = FLAGS.output_path + "/log.txt"
   FLAGS.plot_path    = FLAGS.output_path + "/scores.png"
@@ -47,22 +48,23 @@ if __name__ == '__main__':
   FLAGS.grad_clip    = True
   FLAGS.clip_val     = 10
 
-  FLAGS.check_every  = FLAGS.train_steps/40
-  FLAGS.log_every    = 50
-  FLAGS.target_every = 1000
-  FLAGS.learn_every  = 4
-  FLAGS.learn_start  = 100
+
+  FLAGS.check_every  = FLAGS.train_steps/20
+  FLAGS.log_every    = 500
+  FLAGS.target_every = 200
+  FLAGS.learn_every  = 1
 
   FLAGS.gamma        = 0.99
   FLAGS.lr_end       = 0.00005
   FLAGS.lr_nsteps    = FLAGS.train_steps/2
   FLAGS.eps_end      = 0.1
-  FLAGS.eps_nsteps   = FLAGS.train_steps
+  FLAGS.eps_nsteps   = FLAGS.train_steps/2
 
   FLAGS.fps          = 5
-  FLAGS.state_hist   = FLAGS.learn_every
+  FLAGS.state_hist   = 4
 
   # Make rl environment
+  #universe.configure_logging(False)
   env = create_slither_env(FLAGS.state_type)
 
   FLAGS.state_size   = env.state_size
@@ -88,7 +90,7 @@ if __name__ == '__main__':
   elif FLAGS.network_type == 'deep_q':
     network = network.DeepQ(FLAGS)
 
-  elif FLAGS.network_type == 'deepAC':
+  elif FLAGS.network_type == 'deep_ac':
     network = network.DeepAC(FLAGS)
 
   else: raise NotImplementedError
@@ -101,8 +103,10 @@ if __name__ == '__main__':
 
   # train model
   model = None
-  if FLAGS.model_type == 'deepQmodel':
+  if FLAGS.model_type == 'q':
     model = Model(env, record_env, network, FLAGS)
-  else:
+  elif FLAGS.model_type == 'ac':
     model = ModelAC(env, record_env, network, FLAGS)
+  else:
+    raise NotImplementedError
   model.run(exp_schedule, lr_schedule)
