@@ -78,7 +78,13 @@ class ModelAC(object):
     if len(rewards) > 0:
       self.prog.update (t + 1, exact=[("Loss", loss_eval), ("Avg R", self.summary.avg_reward),
             ("Max R", np.max(rewards)), ("eps", epsilon),
-            ("Grads", grad_eval), ("Max Q", self.summary.max_q), ("lr", lr)])
+            ("Grads", grad_eval), ("Max Q", self.summary.max_q), ("lr", lr), ("actor", 1), ("critic", 0)])
+
+  def update_logs2(self, t, loss_eval, rewards, epsilon, grad_eval, lr):
+    if len(rewards) > 0:
+      self.prog2.update (t + 1, exact=[("Loss", loss_eval), ("Avg R", self.summary.avg_reward),
+            ("Max R", np.max(rewards)), ("eps", epsilon),
+            ("Grads", grad_eval), ("Max Q", self.summary.max_q), ("lr", lr), ("critic", 1), ("actor", 0)])
 
   def train(self, exp_schedule, lr_schedule):
     # Initialize replay buffer and variables
@@ -91,9 +97,10 @@ class ModelAC(object):
     t = 0 # time control of nb of steps
     loss_eval = grad_eval = 0
     scores_eval = [] # list of scores computed at iteration time
-    scores_eval += [self.evaluate(self.env, self.FLAGS.num_test)]
+    #scores_eval += [self.evaluate(self.env, self.FLAGS.num_test)]
 
     self.prog = Progbar(target=self.FLAGS.train_steps)
+    self.prog2 = Progbar(target=self.FLAGS.train_steps)
 
     # Train for # of train steps
     while t < self.FLAGS.train_steps:
@@ -101,16 +108,21 @@ class ModelAC(object):
       ep_len = 0
       state = self.env.reset()
       reward = 0
+      first = 1
+      q_input = None
       # Run for 1 episode and update the buffer
       while True:
-        orig_val = self.network.calcState(state)
+        ep_len += 1
         # replay memory stuff
-        idx     = replay_buffer.store_frame(state)
-        q_input = replay_buffer.encode_recent_observation()
-
+        if first == 1:
+          first = 0
+          idx     = replay_buffer.store_frame(state)
+          q_input = replay_buffer.encode_recent_observation()
         # chose action according to current Q and exploration
         best_action, q_values = self.network.get_best_action(q_input)
         action                = exp_schedule.get_action(best_action)
+        orig_val = self.network.calcState(q_input)
+
 
         # store q values
         max_q_values.append(max(q_values))
@@ -118,71 +130,69 @@ class ModelAC(object):
 
         # perform action in env
         new_state, new_reward, done, info = self.env.step(action)
-        new_val = self.network.calcState(new_state)
+        idx = replay_buffer.store_frame(state)
+        q_input = replay_buffer.encode_recent_observation()
+        new_val = self.network.calcState(q_input)
+        orig_val = orig_val[0][0]
+        new_val = new_val[0][0]
+        print (orig_val, new_reward, done, new_val, ep_len)
 
 
         if not done: # Non-terminal state.
-          target = reward + ( FLAGS.gamma * new_val)
+          target = reward + ( self.FLAGS.gamma * new_val)
         else:
-          # In terminal states, the environment tells us
-          # the value directly.
-          target = reward + ( FLAGS.gamma * new_reward )
+          target = reward + ( self.FLAGS.gamma * new_reward )
 
-        # For our critic, we select the best/highest value.. The
-        # value for this state is based on if the agent selected
-        # the best possible moves from this state forward.
-        #
-        # BTW, we discount an original value provided by the
-        # value network, to handle cases where its spitting
-        # out unreasonably high values.. naturally decaying
-        # these values to something reasonable.
-        best_val = max((orig_val*FLAGS.gamma), target)
+        best_val = max((orig_val), target)
 
-        # Now append this to our critic replay buffer.
-        critic_replay.append([orig_state,best_val])
-
-
-        # Build the update for the Actor. The actor is updated
-        # by using the difference of the value the critic
-        # placed on the old state vs. the value the critic
-        # places on the new state.. encouraging the actor
-        # to move into more valuable states.
         actor_delta = new_val - orig_val
-        actor_replay.append([orig_state, action, actor_delta])
 
-
-        # store the transition
-        replay_buffer.store_effect(idx, action, new_reward, done, best_val, actor_delta)
+        replay_buffer.store_effect(idx-1, action, new_reward, done, best_val, actor_delta)
         state = new_state
 
-                # If we are in a terminal state, append a replay for it also.
         if done:
-          idx     = replay_buffer.store_frame(new_state)
-          q_input = replay_buffer.encode_recent_observation()
-          replay_buffer.store_effect(idx, action, new_reward, done, best_val, actor_delta)
+          replay_buffer.store_effect(idx, action, 0, done, 0, 0)
 
         # Count reward
         total_reward += new_reward
+
+        reward=new_reward
 
         # Stop at end of episode
         if done: break
 
       old_t = t
+      temp_ep_len = ep_len
       while True:
         t += 1
+        temp_ep_len -= 1
+
         if ((t > self.FLAGS.learn_start) and (t % self.FLAGS.learn_every == 0)):
-          loss_eval, grad_eval = self.network.update_critic_step(t, replay_buffer, lr_schedule.epsilon, self.summary)
+          if replay_buffer.can_sample(self.FLAGS.batch_size) == True: 
+            loss_eval, grad_eval = self.network.update_critic_step(t, replay_buffer, lr_schedule.epsilon, self.summary)
+
+
+        # Update logs if necessary
+        if ((t > self.FLAGS.learn_start) and (t % self.FLAGS.log_every == 0)):
+          self.update_logs2(t, loss_eval, rewards, exp_schedule.epsilon, grad_eval, lr_schedule.epsilon)
+
+        if temp_ep_len <= 0 or t >= self.FLAGS.train_steps: break
+
+
+      rewards.append(total_reward)
+
       # Learn using replay
-      t = old_t
       while True:
+
         t += 1
         ep_len -= 1
 
         # Make train step if necessary
         if ((t > self.FLAGS.learn_start) and (t % self.FLAGS.learn_every == 0)):
-          loss_eval, grad_eval = self.network.update_actor_step(t, replay_buffer, lr_schedule.epsilon, self.summary)
-          exp_schedule.update(t)
-          lr_schedule.update(t)
+          if replay_buffer.can_sample(self.FLAGS.batch_size) == True: 
+            loss_eval, grad_eval = self.network.update_actor_step(t, replay_buffer, lr_schedule.epsilon, self.summary)
+            exp_schedule.update(t)
+            lr_schedule.update(t)
 
         # Update logs if necessary
         if ((t > self.FLAGS.learn_start) and (t % self.FLAGS.log_every == 0)):
@@ -208,7 +218,6 @@ class ModelAC(object):
         if ep_len <= 0 or t >= self.FLAGS.train_steps: break
 
       # Update episodic rewards
-      rewards.append(total_reward)
 
     # End of training
     self.logger.info("- Training done.")
@@ -217,7 +226,7 @@ class ModelAC(object):
     export_plot(scores_eval, "Scores", self.FLAGS.plot_path)
 
   def evaluate(self, env, num_episodes):
-    replay_buffer = ReplayBuffer(self.FLAGS.state_hist, self.FLAGS.state_hist)
+    replay_buffer = ReplayBufferAC(self.FLAGS.state_hist, self.FLAGS.state_hist)
     rewards = []
 
     if num_episodes > 1: self.logger.info("Evaluating...")
@@ -237,7 +246,7 @@ class ModelAC(object):
         new_state, reward, done, info = env.step(action)
 
         # Store in replay memory
-        replay_buffer.store_effect(idx, action, reward, done)
+        replay_buffer.store_effect(idx, action, reward, done, None, None)
         state = new_state
 
         # count reward

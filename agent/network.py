@@ -229,8 +229,6 @@ class DeepAC(Network):
 
     self.add_loss_op()
 
-    self.add_update_target_op()
-
     self.add_optimizer_op()
 
   def initialize(self):
@@ -242,31 +240,14 @@ class DeepAC(Network):
     # initiliaze all variables
     self.sess.run(tf.global_variables_initializer())
 
-    # synchronise q and target_q network
-    self.update_target_params()
-
     # for saving network weights
     self.saver = tf.train.Saver()
-
-  def update_target_params(self):
-    self.sess.run(self.update_target_op)
 
   def save(self):
     if not os.path.exists(self.FLAGS.model_path):
       os.makedirs(self.FLAGS.model_path)
     self.saver.save(self.sess, self.FLAGS.model_path)
 
-
-  def add_update_target_op(self):
-    scope_col = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.scope)
-    target_scop_col = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.target_scope)
-
-    assn_vec = []
-    for i,var in enumerate(scope_col):
-      assign = tf.assign(target_scop_col[i], scope_col[i])
-      assn_vec.append(assign)
-
-    self.update_target_op = tf.group(*assn_vec)
 
   def process_state(self, state):
     state = tf.cast(state, tf.float32)
@@ -286,8 +267,9 @@ class DeepAC(Network):
     self.eval_reward_placeholder = tf.placeholder(tf.float32, shape=(), name="eval_reward")
 
     # add placeholders from the graph
-    tf.summary.scalar("loss", self.loss)
-    tf.summary.scalar("grads norm", self.grad_norm)
+    tf.summary.scalar("actorloss", self.actorLoss)
+    tf.summary.scalar("criticloss", self.criticLoss)
+    #tf.summary.scalar("grads norm", self.grad_norm)
 
     # extra summaries from python -> placeholders
     tf.summary.scalar("Avg Reward", self.avg_reward_placeholder)
@@ -321,9 +303,14 @@ class DeepAC(Network):
   def add_loss_op(self):
     self.actor, self.critic = self.get_actor_critic_values(self.proc_s, scope=self.scope, reuse=False)
     self.criticLoss = tf.reduce_mean(tf.square(self.critic-self.criticBest))
-    self.actorLoss = tf.reduce_mean(tf.square(self.actor[[i for i in range(self.FLAGS.batch_size)], self.a]))
 
-  def add_optimizer_op(self, scope):
+    value = tf.constant([i for i in range(self.FLAGS.batch_size)])
+    print (value.shape, self.a.shape)
+    inds = tf.stack([value, self.a], axis=1)
+    sli = tf.gather_nd(self.actor, inds)
+    self.actorLoss = tf.reduce_mean(tf.square( sli - self.actorDiff ))
+
+  def add_optimizer_op(self):
     #need implementation
     opt = tf.train.AdamOptimizer(self.lr)
     var_list = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope = self.scope + "_base")
@@ -346,7 +333,11 @@ class DeepAC(Network):
     opt = tf.train.AdamOptimizer(self.lr)
     var_list = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope = self.scope + "_base")
     var_list.extend(tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope = self.scope + "_critic"))
-    grads_and_vars = opt.compute_gradients(self.criticLoss, var_list = var_list)
+    var_list_without_old_adam_vars = []
+    for el in var_list:
+      if ("Adam:0" not in el.name.split('/') and "Adam_1:0" not in el.name.split('/')):
+        var_list_without_old_adam_vars.append(el)
+    grads_and_vars = opt.compute_gradients(self.criticLoss, var_list = var_list_without_old_adam_vars)
     clipped_grads_and_vars=[]
     clipped_grads_list=[]
     if (self.FLAGS.grad_clip):
@@ -362,14 +353,14 @@ class DeepAC(Network):
       self.grad_norm_critic = tf.global_norm([grads for grads, _ in grads_and_vars])
 
   def get_actor_critic_values(self, state, scope, reuse=False):
-    with tf.variable_scope(scope):
-      out = layers.conv2d(inputs=state, num_outputs = 32, kernel_size=[8,8], stride=[4,4], padding="SAME", activation_fn=tf.nn.relu, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"_base_1")
-      out = layers.conv2d(inputs=out, num_outputs = 64, kernel_size=[4,4], stride=[2,2], padding="SAME", activation_fn=tf.nn.relu, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"_base_2")
-      out = layers.conv2d(inputs=out, num_outputs = 64, kernel_size=[3,3], stride=[1,1], padding="SAME", activation_fn=tf.nn.relu, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"_base_3")
-      out = layers.flatten(out, scope=scope)
-      out = layers.fully_connected(inputs=out, num_outputs = 512, activation_fn=tf.nn.relu, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"_base_4")
-      out1 = layers.fully_connected(inputs=out, num_outputs = self.num_actions, activation_fn = None, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"_actor")
-      out2 = layers.fully_connected(inputs=out, num_outputs = 1, activation_fn = None, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"_critic")
+    #with tf.variable_scope(scope):
+    out = layers.conv2d(inputs=state, num_outputs = 32, kernel_size=[8,8], stride=[4,4], padding="SAME", activation_fn=tf.nn.relu, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"_base_1")
+    out = layers.conv2d(inputs=out, num_outputs = 64, kernel_size=[4,4], stride=[2,2], padding="SAME", activation_fn=tf.nn.relu, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"_base_2")
+    out = layers.conv2d(inputs=out, num_outputs = 64, kernel_size=[3,3], stride=[1,1], padding="SAME", activation_fn=tf.nn.relu, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"_base_3")
+    out = layers.flatten(out, scope=scope)
+    out = layers.fully_connected(inputs=out, num_outputs = 512, activation_fn=tf.nn.relu, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"_base_4")
+    out1 = layers.fully_connected(inputs=out, num_outputs = self.num_actions, activation_fn = None, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"_actor")
+    out2 = layers.fully_connected(inputs=out, num_outputs = 1, activation_fn = None, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"_critic")
     return out1, out2
 
 
@@ -396,9 +387,9 @@ class DeepAC(Network):
       self.std_q_placeholder: summary.std_q,
       self.eval_reward_placeholder: summary.eval_reward,
     }
-
     output_list = [self.actorLoss, self.grad_norm_actor, self.merged, self.train_op_actor]
     loss_eval, grad_norm_eval, summary, _ = self.sess.run(output_list, feed_dict=fd)
+    #print ("Updating actor ", np.mean(actorDiff_batch), np.amax(actorDiff_batch))
 
     # tensorboard stuff
     self.file_writer.add_summary(summary, t)
@@ -427,7 +418,7 @@ class DeepAC(Network):
       self.std_q_placeholder: summary.std_q,
       self.eval_reward_placeholder: summary.eval_reward,
     }
-
+    #print ("Updating critic ", np.mean(criticBest_batch), np.amax(criticBest_batch))
     output_list = [self.criticLoss, self.grad_norm_critic, self.merged, self.train_op_critic]
     loss_eval, grad_norm_eval, summary, _ = self.sess.run(output_list, feed_dict=fd)
 
@@ -437,4 +428,4 @@ class DeepAC(Network):
     return loss_eval, grad_norm_eval
 
   def calcState(self, state):
-    return self.sess.run([self.actor], fd = {self.s: state})[0]
+    return self.sess.run([self.critic], feed_dict = {self.s: np.expand_dims(state, axis=0)})[0] #need to expand dims because it is batch of one

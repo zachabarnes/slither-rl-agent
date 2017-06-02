@@ -64,7 +64,7 @@ class ReplayBufferAC(object):
     act_batch      = self.action[idxes]
     rew_batch      = self.reward[idxes]
     criticBest_batch = self.criticBestVal[idxes]
-    actorDiff_batch  = self.actorDiff[idex]
+    actorDiff_batch  = self.actorDiff[idxes]
     next_obs_batch = np.concatenate([self._encode_observation(idx + 1)[None] for idx in idxes], 0)
     done_mask      = np.array([1.0 if self.done[idx] else 0.0 for idx in idxes], dtype=np.float32)
 

@@ -38,7 +38,7 @@ if __name__ == '__main__':
   FLAGS = parser.parse_args()
 
   # Set constants
-  FLAGS.output_path   = "results/"      + FLAGS.network_type
+  FLAGS.output_path   = "results/"      + FLAGS.network_type + "/" + 'run9'
   FLAGS.model_path   = FLAGS.output_path + "/model.weights/"
   FLAGS.log_path     = FLAGS.output_path + "/log.txt"
   FLAGS.plot_path    = FLAGS.output_path + "/scores.png"
@@ -47,7 +47,7 @@ if __name__ == '__main__':
   FLAGS.grad_clip    = True
   FLAGS.clip_val     = 10
 
-  FLAGS.check_every  = FLAGS.train_steps/20
+  FLAGS.check_every  = FLAGS.train_steps/40
   FLAGS.log_every    = 50
   FLAGS.target_every = 1000
   FLAGS.learn_every  = 4
