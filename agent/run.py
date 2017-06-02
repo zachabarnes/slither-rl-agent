@@ -49,20 +49,21 @@ if __name__ == '__main__':
   FLAGS.clip_val     = 10
 
   FLAGS.check_every  = FLAGS.train_steps/20
-  FLAGS.log_every    = 50
-  FLAGS.target_every = 500
+  FLAGS.log_every    = 500
+  FLAGS.target_every = 200
   FLAGS.learn_every  = 1
 
   FLAGS.gamma        = 0.99
   FLAGS.lr_end       = 0.00005
   FLAGS.lr_nsteps    = FLAGS.train_steps/2
   FLAGS.eps_end      = 0.1
-  FLAGS.eps_nsteps   = FLAGS.train_steps
+  FLAGS.eps_nsteps   = FLAGS.train_steps/2
 
   FLAGS.fps          = 5
   FLAGS.state_hist   = 4
 
   # Make rl environment
+  #universe.configure_logging(False)
   env = create_slither_env(FLAGS.state_type)
 
   FLAGS.state_size   = env.state_size
