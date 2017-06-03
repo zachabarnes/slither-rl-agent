@@ -48,7 +48,6 @@ if __name__ == '__main__':
   FLAGS.grad_clip    = True
   FLAGS.clip_val     = 10
 
-
   FLAGS.check_every  = FLAGS.train_steps/10
   FLAGS.log_every    = 500
   FLAGS.target_every = 800

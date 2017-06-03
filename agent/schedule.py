@@ -145,6 +145,6 @@ class IterSchedule(LinearSchedule):
       an action
     """
     iter_epsilon = max(self.epsilon1,self.epsilon2) - self.eps_diff*(iter_decay**ep_step_number)
-    if np.random.random() <= iter_epsilon
+    if np.random.random() <= iter_epsilon:
       return self.env.action_space.sample()
     return best_action

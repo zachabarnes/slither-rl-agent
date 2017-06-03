@@ -168,7 +168,7 @@ class Model(object):
             scores_eval += [self.evaluate(self.env, self.FLAGS.num_test)]
 
             # Save current Model
-            #self.network.save()
+            self.network.save()
 
             # Record video of current model
             if self.FLAGS.record:
