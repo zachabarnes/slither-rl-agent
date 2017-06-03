@@ -11,10 +11,13 @@ import tensorflow as tf
 import tensorflow.contrib.layers as layers
 
 from gym import wrappers
+from universe.wrappers import Unvectorize
 from collections import deque
 
 from utils.general import get_logger, Progbar, export_plot
 from utils.replay_bufferAC import ReplayBufferAC
+from utils.env import create_slither_env
+
 
 class Summary(object):
   def __init__(self):
@@ -104,148 +107,165 @@ class ModelAC(object):
 
     # Train for # of train steps
     while t < self.FLAGS.train_steps:
-      total_reward = 0
-      ep_len = 0
-      state = self.env.reset()
-      reward = 0
-      first = 1
-      q_input = None
-      # Run for 1 episode and update the buffer
-      while True:
-        ep_len += 1
-        # replay memory stuff
-        if first == 1:
-          first = 0
-          idx     = replay_buffer.store_frame(state)
+      continual_crash = 0
+      try:
+        total_reward = 0
+        ep_len = 0
+        state = self.env.reset()
+        reward = 0
+        first = 1
+        q_input = None
+        # Run for 1 episode and update the buffer
+        while True:
+          ep_len += 1
+          # replay memory stuff
+          if first == 1:
+            first = 0
+            idx     = replay_buffer.store_frame(state)
+            q_input = replay_buffer.encode_recent_observation()
+          # chose action according to current Q and exploration
+          best_action, q_values = self.network.get_best_action(q_input)
+          action                = exp_schedule.get_action(best_action)
+          orig_val = self.network.calcState(q_input)
+
+
+          # store q values
+          max_q_values.append(max(q_values))
+          q_values += list(q_values)
+
+          # perform action in env
+          new_state, new_reward, done, info = self.env.step(action)
+          idx = replay_buffer.store_frame(state)
           q_input = replay_buffer.encode_recent_observation()
-        # chose action according to current Q and exploration
-        best_action, q_values = self.network.get_best_action(q_input)
-        action                = exp_schedule.get_action(best_action)
-        orig_val = self.network.calcState(q_input)
+          new_val = self.network.calcState(q_input)
+          orig_val = orig_val[0][0]
+          new_val = new_val[0][0]
 
 
-        # store q values
-        max_q_values.append(max(q_values))
-        q_values += list(q_values)
+          if not done: # Non-terminal state.
+            target = reward + ( self.FLAGS.gamma * new_val)
+          else:
+            target = reward + ( self.FLAGS.gamma * new_reward )
 
-        # perform action in env
-        new_state, new_reward, done, info = self.env.step(action)
-        idx = replay_buffer.store_frame(state)
-        q_input = replay_buffer.encode_recent_observation()
-        new_val = self.network.calcState(q_input)
-        orig_val = orig_val[0][0]
-        new_val = new_val[0][0]
+          best_val = max((self.FLAGS.gamma * orig_val), target)
+          best_val = max(best_val, 0)
+          print (orig_val, reward, done, new_val, ep_len, new_val-orig_val, best_val)
 
 
-        if not done: # Non-terminal state.
-          target = reward + ( self.FLAGS.gamma * new_val)
+          actor_delta = new_val - orig_val
+
+          state = new_state
+
+          if done:
+            replay_buffer.store_effect(idx-1, action, reward, done, best_val, actor_delta)
+            replay_buffer.store_effect(idx, action, -20, done, -20, -20)
+          else:
+            replay_buffer.store_effect(idx-1, action, reward, done, best_val, actor_delta)
+
+
+          # Count reward
+          total_reward += new_reward
+
+          reward=new_reward
+
+          # Stop at end of episode
+          if done: break
+
+        old_t = t
+        temp_ep_len = ep_len
+        rewards.append(total_reward)
+
+        while True:
+          t += 1
+          temp_ep_len -= .5
+
+          if ((t > self.FLAGS.learn_start) and (t % self.FLAGS.learn_every == 0)):
+            if replay_buffer.can_sample(self.FLAGS.batch_size) == True: 
+              loss_eval, grad_eval = self.network.update_critic_step(t, replay_buffer, lr_schedule.epsilon, self.summary)
+
+
+          # Update logs if necessary
+          if ((t > self.FLAGS.learn_start) and (t % self.FLAGS.log_every == 0)):
+            self.update_averages(rewards, max_q_values, q_values, scores_eval)
+            self.update_logs2(t, loss_eval, rewards, exp_schedule.epsilon, grad_eval, lr_schedule.epsilon)
+
+          # Update logs if necessary
+          elif (t < self.FLAGS.learn_start) and (t % self.FLAGS.log_every == 0):
+            sys.stdout.write("\rPopulating the memory {}/{}...".format(t, self.FLAGS.learn_start))
+            sys.stdout.flush()
+
+          if ((t > self.FLAGS.learn_start) and (t % self.FLAGS.check_every == 0)):
+            # Evaluate current model
+            scores_eval += [self.evaluate(self.env, self.FLAGS.num_test)]
+
+            # Save current Model
+            self.network.save()
+
+            # Record video of current model
+            if self.FLAGS.record:
+              self.record()
+
+          if (t % self.FLAGS.store_weights_every == 0):
+            self.network.save_weights()
+
+          if temp_ep_len <= 0 or t >= self.FLAGS.train_steps: break
+
+
+
+        # Learn using replay
+        while True:
+
+          t += 1
+          ep_len -= .5
+
+          # Make train step if necessary
+          if ((t > self.FLAGS.learn_start) and (t % self.FLAGS.learn_every == 0)):
+            if replay_buffer.can_sample(self.FLAGS.batch_size) == True: 
+              loss_eval, grad_eval = self.network.update_actor_step(t, replay_buffer, lr_schedule.epsilon, self.summary)
+              exp_schedule.update(t)
+              lr_schedule.update(t)
+
+          # Update logs if necessary
+          if ((t > self.FLAGS.learn_start) and (t % self.FLAGS.log_every == 0)):
+            self.update_averages(rewards, max_q_values, q_values, scores_eval)
+            self.update_logs(t, loss_eval, rewards, exp_schedule.epsilon, grad_eval, lr_schedule.epsilon)
+
+          # Update logs if necessary
+          elif (t < self.FLAGS.learn_start) and (t % self.FLAGS.log_every == 0):
+            sys.stdout.write("\rPopulating the memory {}/{}...".format(t, self.FLAGS.learn_start))
+            sys.stdout.flush()
+
+          if ((t > self.FLAGS.learn_start) and (t % self.FLAGS.check_every == 0)):
+            # Evaluate current model
+            scores_eval += [self.evaluate(self.env, self.FLAGS.num_test)]
+
+            # Save current Model
+            self.network.save()
+
+            # Record video of current model
+            if self.FLAGS.record:
+              self.record()
+
+          if (t % self.FLAGS.store_weights_every == 0):
+            self.network.save_weights()
+
+          if ep_len <= 0 or t >= self.FLAGS.train_steps: break
+        continual_crash = 0
+
+      except Exception as e:
+        continual_crash +=1
+        self.logger.info(e)
+        if continual_crash >= 10:
+          self.logger.info("Crashed 10 times -- stopping u suck")
+          raise e
         else:
-          target = reward + ( self.FLAGS.gamma * new_reward )
-
-        best_val = max((self.FLAGS.gamma * orig_val), target)
-
-        print (orig_val, new_reward, done, new_val, ep_len, new_val-orig_val, best_val)
-
-
-        actor_delta = new_val - orig_val
-
-        state = new_state
-
-        if done:
-          replay_buffer.store_effect(idx-1, action, new_reward, done, -20, actor_delta)
-          replay_buffer.store_effect(idx, action, -20, done, -20, -20)
-        else:
-          replay_buffer.store_effect(idx-1, action, new_reward, done, -20, actor_delta)
-
-
-        # Count reward
-        total_reward += new_reward
-
-        reward=new_reward
-
-        # Stop at end of episode
-        if done: break
-
-      old_t = t
-      temp_ep_len = ep_len
-      rewards.append(total_reward)
-
-      while True:
-        t += 1
-        temp_ep_len -= 1
-
-        if ((t > self.FLAGS.learn_start) and (t % self.FLAGS.learn_every == 0)):
-          if replay_buffer.can_sample(self.FLAGS.batch_size) == True: 
-            loss_eval, grad_eval = self.network.update_critic_step(t, replay_buffer, lr_schedule.epsilon, self.summary)
-
-
-        # Update logs if necessary
-        if ((t > self.FLAGS.learn_start) and (t % self.FLAGS.log_every == 0)):
-          self.update_averages(rewards, max_q_values, q_values, scores_eval)
-          self.update_logs2(t, loss_eval, rewards, exp_schedule.epsilon, grad_eval, lr_schedule.epsilon)
-
-        # Update logs if necessary
-        elif (t < self.FLAGS.learn_start) and (t % self.FLAGS.log_every == 0):
-          sys.stdout.write("\rPopulating the memory {}/{}...".format(t, self.FLAGS.learn_start))
-          sys.stdout.flush()
-
-        if ((t > self.FLAGS.learn_start) and (t % self.FLAGS.check_every == 0)):
-          # Evaluate current model
-          scores_eval += [self.evaluate(self.env, self.FLAGS.num_test)]
-
-          # Save current Model
-          self.network.save()
-
-          # Record video of current model
-          if self.FLAGS.record:
-            self.record()
-            
-        if (t % self.FLAGS.store_weights_every == 0):
-          self.network.save_weights()
-
-        if temp_ep_len <= 0 or t >= self.FLAGS.train_steps: break
-
-
-
-      # Learn using replay
-      while True:
-
-        t += 1
-        ep_len -= 1
-
-        # Make train step if necessary
-        if ((t > self.FLAGS.learn_start) and (t % self.FLAGS.learn_every == 0)):
-          if replay_buffer.can_sample(self.FLAGS.batch_size) == True: 
-            loss_eval, grad_eval = self.network.update_actor_step(t, replay_buffer, lr_schedule.epsilon, self.summary)
-            exp_schedule.update(t)
-            lr_schedule.update(t)
-
-        # Update logs if necessary
-        if ((t > self.FLAGS.learn_start) and (t % self.FLAGS.log_every == 0)):
-          self.update_averages(rewards, max_q_values, q_values, scores_eval)
-          self.update_logs(t, loss_eval, rewards, exp_schedule.epsilon, grad_eval, lr_schedule.epsilon)
-
-        # Update logs if necessary
-        elif (t < self.FLAGS.learn_start) and (t % self.FLAGS.log_every == 0):
-          sys.stdout.write("\rPopulating the memory {}/{}...".format(t, self.FLAGS.learn_start))
-          sys.stdout.flush()
-
-        if ((t > self.FLAGS.learn_start) and (t % self.FLAGS.check_every == 0)):
-          # Evaluate current model
-          scores_eval += [self.evaluate(self.env, self.FLAGS.num_test)]
-
-          # Save current Model
-          self.network.save()
-
-          # Record video of current model
-          if self.FLAGS.record:
-            self.record()
-
-        if (t % self.FLAGS.store_weights_every == 0):
-          self.network.save_weights()
-
-        if ep_len <= 0 or t >= self.FLAGS.train_steps: break
-
+          t-=1
+          self.logger.info("Env crash, making new env")
+          time.sleep(60)
+          self.env = create_slither_env(self.FLAGS.state_type)
+          self.env = Unvectorize(self.env)
+          self.env.configure(fps=self.FLAGS.fps, remotes=self.FLAGS.remotes, start_timeout=15 * 60, vnc_driver='go', vnc_kwargs={'encoding': 'tight', 'compress_level': 0, 'fine_quality_level': 50})
+          time.sleep(60)
       # Update episodic rewards
 
     # End of training
@@ -303,7 +323,7 @@ class ModelAC(object):
     self.network.initialize()
 
     # Record one game at the beginning
-    if self.FLAGS.record: self.record()
+    #if self.FLAGS.record: self.record()
 
     # Train model
     self.train(exp_schedule, lr_schedule)

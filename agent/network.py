@@ -320,14 +320,8 @@ class DeepAC(Network):
     #need implementation
     opt = tf.train.AdamOptimizer(self.lr)
     var_list = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope = self.scope + "_base")
-    for el in var_list:
-      print (el)
-    weight_var = None
-    for el in var_list:
-      if el.name == "scope_base_1/weights:0":
-        weight_var = el
-    print (weight_var)
     var_list.extend(tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope = self.scope + "_actor"))
+    print (var_list)
     grads_and_vars = opt.compute_gradients(self.actorLoss, var_list = var_list)
     clipped_grads_and_vars=[]
     clipped_grads_list=[]
@@ -367,20 +361,28 @@ class DeepAC(Network):
 
   def get_actor_critic_values(self, state, scope, reuse=False):
     #with tf.variable_scope(scope):
-    self.convLayer1 = layers.conv2d(inputs=state, num_outputs = 32, kernel_size=[8,8], stride=[4,4], padding="SAME", activation_fn=tf.nn.relu, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"_base_1")
-    out = layers.conv2d(inputs = self.convLayer1, num_outputs = 64, kernel_size=[4,4], stride=[2,2], padding="SAME", activation_fn=tf.nn.relu, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"_base_2")
-    out = layers.conv2d(inputs=out, num_outputs = 64, kernel_size=[3,3], stride=[1,1], padding="SAME", activation_fn=tf.nn.relu, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"_base_3")
+    out = layers.conv2d(inputs=state, num_outputs = 32, kernel_size=[8,8], stride=[4,4], padding="SAME", activation_fn=tf.nn.relu, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"_actor_1")
+    out = layers.conv2d(inputs = out, num_outputs = 64, kernel_size=[4,4], stride=[2,2], padding="SAME", activation_fn=tf.nn.relu, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"_actor_2")
+    out = layers.conv2d(inputs=out, num_outputs = 64, kernel_size=[3,3], stride=[1,1], padding="SAME", activation_fn=tf.nn.relu, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"_actor_3")
+    out = layers.conv2d(inputs=out, num_outputs = 64, kernel_size=[3,3], stride=[1,1], padding="SAME", activation_fn=tf.nn.relu, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"_actor_4")
     out = layers.flatten(out, scope=scope)
-    out = layers.fully_connected(inputs=out, num_outputs = 512, activation_fn=tf.nn.relu, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"_base_4")
+    out = layers.fully_connected(inputs=out, num_outputs = 512, activation_fn=tf.nn.relu, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"_actor_5")
     out1 = layers.fully_connected(inputs=out, num_outputs = self.num_actions, activation_fn = None, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"_actor")
+
+    out = layers.conv2d(inputs=state, num_outputs = 32, kernel_size=[8,8], stride=[4,4], padding="SAME", activation_fn=tf.nn.relu, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"_critic_1")
+    out = layers.conv2d(inputs = out, num_outputs = 64, kernel_size=[4,4], stride=[2,2], padding="SAME", activation_fn=tf.nn.relu, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"_critic_2")
+    out = layers.conv2d(inputs=out, num_outputs = 64, kernel_size=[3,3], stride=[1,1], padding="SAME", activation_fn=tf.nn.relu, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"_critic_3")
+    out = layers.conv2d(inputs=out, num_outputs = 64, kernel_size=[3,3], stride=[1,1], padding="SAME", activation_fn=tf.nn.relu, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"_critic_4")
+    out = layers.flatten(out, scope=scope)
+    out = layers.fully_connected(inputs=out, num_outputs = 512, activation_fn=tf.nn.relu, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"_critic_5")
     out2 = layers.fully_connected(inputs=out, num_outputs = 1, activation_fn = None, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"_critic")
     return out1, out2
 
   def save_weights(self):
-    var_list = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope = self.scope + "_base")
+    var_list = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope = self.scope + "_critic")
     weight_var = None
     for el in var_list:
-      if el.name == "scope_base_1/weights:0":
+      if el.name == "scope_critic_1/weights:0":
         weight_var = el
     with self.sess.as_default():
       conv_weights = weight_var.eval()

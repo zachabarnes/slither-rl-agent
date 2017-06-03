@@ -23,11 +23,11 @@ parser.add_argument('-mod', '--model_type',   type=str,  default="ac",          
 parser.add_argument('-typ', '--state_type',   type=str,  default="shapes",                help="State type (features, colors, shapes)")
 parser.add_argument('-rem', '--remotes',      type=int,  default=1,                       help='Number of remotes to run')
 parser.add_argument('-env', '--env-id',       type=str,  default="internet.SlitherIO-v0", help="Environment id")
-parser.add_argument('-rec', '--record',       type=bool, default=False,                    help="Record videos during train")
+parser.add_argument('-rec', '--record',       type=bool, default=True,                    help="Record videos during train")
 parser.add_argument('-buf', '--buffer_size',  type=int,  default=50000,                   help="Size of replay buffer")
 
 # Train Params
-parser.add_argument('-trn', '--train_steps',  type=int,   default=200000,  help="Number of steps to train")
+parser.add_argument('-trn', '--train_steps',  type=int,   default=1000000,  help="Number of steps to train")
 parser.add_argument('-tst', '--num_test',     type=int,   default=10,      help="Number of episodes to test model")
 parser.add_argument('-bat', '--batch_size',   type=int,   default=32,      help="Batch_size")
 parser.add_argument('-lnr', '--learning_rate',type=float, default=0.00025, help="Initial learning rate")
@@ -37,7 +37,7 @@ parser.add_argument('-lst', '--learn_start',  type=int,   default=200,     help=
 
 if __name__ == '__main__':
   FLAGS = parser.parse_args()
-  run = "/run14"
+  run = "/run27"
   # Set constants
   FLAGS.output_path  = "results/"      + FLAGS.network_type + run
   FLAGS.model_path   = FLAGS.output_path + "/model.weights/" 
@@ -49,7 +49,7 @@ if __name__ == '__main__':
   FLAGS.clip_val     = 10
 
 
-  FLAGS.check_every  = FLAGS.train_steps/20
+  FLAGS.check_every  = 20000
   FLAGS.store_weights_every  = 5000
   FLAGS.log_every    = 500
   FLAGS.target_every = 800
