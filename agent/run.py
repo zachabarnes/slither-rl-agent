@@ -24,18 +24,18 @@ parser.add_argument('-typ', '--state_type',   type=str,  default="shapes",      
 parser.add_argument('-rem', '--remotes',      type=int,  default=1,                       help='Number of remotes to run')
 parser.add_argument('-env', '--env-id',       type=str,  default="internet.SlitherIO-v0", help="Environment id")
 parser.add_argument('-rec', '--record',       type=bool, default=False,                    help="Record videos during train")
-parser.add_argument('-buf', '--buffer_size',  type=int,  default=50000,                   help="Size of replay buffer")
+parser.add_argument('-buf', '--buffer_size',  type=int,  default=500000,                   help="Size of replay buffer")
 
 # Train Params
-parser.add_argument('-trn', '--train_steps',  type=int,   default=200000,  help="Number of steps to train")
+parser.add_argument('-trn', '--train_steps',  type=int,   default=500000,  help="Number of steps to train")
 parser.add_argument('-tst', '--num_test',     type=int,   default=10,      help="Number of episodes to test model")
 parser.add_argument('-bat', '--batch_size',   type=int,   default=32,      help="Batch_size")
 parser.add_argument('-lnr', '--learning_rate',type=float, default=0.00025, help="Initial learning rate")
 parser.add_argument('-eps', '--epsilon',      type=float, default=1.0,     help="Initial Exploration constant (e-greedy)")
-parser.add_argument('-lst', '--learn_start',  type=int,   default=200,     help="Num ep before learning")
+parser.add_argument('-lst', '--learn_start',  type=int,   default=2000,     help="Num ep before learning")
 
-parser.add_argument('-clp', '--clip_value',  type=int,   default=10,     help="")
-parser.add_argument('-tgt', '--target_every',  type=int,   default=1000,     help="")
+parser.add_argument('-clp', '--clip_val',  type=int,   default=10,     help="")
+parser.add_argument('-tgt', '--target_every',  type=int,   default=2000,     help="")
 
 
 if __name__ == '__main__':
@@ -60,7 +60,7 @@ if __name__ == '__main__':
   FLAGS.lr_end       = 0.00005
   FLAGS.lr_nsteps    = FLAGS.train_steps/2
   FLAGS.eps_end      = 0.1
-  FLAGS.eps_nsteps   = FLAGS.train_steps/2
+  FLAGS.eps_nsteps   = FLAGS.train_steps/5
 
   FLAGS.fps          = 5
   FLAGS.state_hist   = 4

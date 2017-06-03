@@ -16,3 +16,5 @@ log.txt
 *.mp4
 
 *.npy
+
+Atari/assignment2/gym/
