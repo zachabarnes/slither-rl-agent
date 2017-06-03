@@ -45,10 +45,6 @@ class QN(object):
 
     def build(self):
         """
-        Build model
-        """
-        def build(self):
-        """
         Build model by adding all necessary variables
         """
         # add placeholders
