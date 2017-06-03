@@ -21,7 +21,7 @@ class NatureQN(Linear):
         Returns Q values for all actions
 
         Args:
-            state: (tf tensor) 
+            state: (tf tensor)
                 shape = (batch_size, img height, img width, nchannels)
             scope: (string) scope name, that specifies if target network or not
             reuse: (bool) reuse of variables in the scope
@@ -38,7 +38,7 @@ class NatureQN(Linear):
                 https://storage.googleapis.com/deepmind-data/assets/papers/DeepMindNature14236Paper.pdf
                 https://www.cs.toronto.edu/~vmnih/docs/dqn.pdf
 
-              you may find the section "model architecture" of the appendix of the 
+              you may find the section "model architecture" of the appendix of the
               nature paper particulary useful.
 
               store your result in out of shape = (batch_size, num_actions)
@@ -52,29 +52,27 @@ class NatureQN(Linear):
 
         """
         ##############################################################
-        ################ YOUR CODE HERE - 10-15 lines ################ 
+        ################ YOUR CODE HERE - 10-15 lines ################
 
         with tf.variable_scope(scope):
 	        #CONV: 32 filters of 8 x 8 with stride 4 -> RELU
 	        out = layers.conv2d(inputs=state, num_outputs = 32, kernel_size=[8,8], stride=[4,4], padding="SAME", activation_fn=tf.nn.relu, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"1")
-	       
+
 	        #CONV: 64 filters of 4 x 4 with stride 2 -> RELU
 	        out = layers.conv2d(inputs=out, num_outputs = 64, kernel_size=[4,4], stride=[2,2], padding="SAME", activation_fn=tf.nn.relu, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"2")
-	        
-	        #CONV: 64 filters of 3 x 3 with stride 1 -> RELU
-	        out1 = layers.conv2d(inputs=out, num_outputs = 64, kernel_size=[3,3], stride=[1,1], padding="SAME", activation_fn=tf.nn.relu, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"3")
-	        #Fully Connected (512) -> RELU
-	        out2 = layers.flatten(out1, scope=scope)
 
-	        out = layers.fully_connected(inputs=out2, num_outputs = 512, activation_fn=tf.nn.relu, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"4")
-	        
+	        #CONV: 64 filters of 3 x 3 with stride 1 -> RELU
+	        out = layers.conv2d(inputs=out, num_outputs = 64, kernel_size=[3,3], stride=[1,1], padding="SAME", activation_fn=tf.nn.relu, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"3")
+	        #Fully Connected (512) -> RELU
+	        out = layers.flatten(out, scope=scope)
+
+	        out = layers.fully_connected(inputs=out, num_outputs = 512, activation_fn=tf.nn.relu, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"4")
+
 	        #Fully Connected (num_actions) no activation
 	        out = layers.fully_connected(inputs=out, num_outputs = num_actions, activation_fn = None, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"5")
 
         ##############################################################
         ######################## END YOUR CODE #######################
-        print(out1.get_shape().as_list())
-        print(out2.get_shape().as_list())
         return out
 
 
@@ -85,7 +83,7 @@ if __name__ == '__main__':
     env = EnvTest((80, 80, 1))
 
     # exploration strategy
-    exp_schedule = LinearExploration(env, config.eps_begin, 
+    exp_schedule = LinearExploration(env, config.eps_begin,
             config.eps_end, config.eps_nsteps)
 
     # learning rate schedule
