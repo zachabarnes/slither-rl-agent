@@ -33,6 +33,7 @@ pip install -e .
 ```
 - Install codebase and packages
 ```
+cd ..
 git clone https://github.com/zabarnes/RattLe.git
 cd RattLe
 pip install -r requirements.txt
