@@ -37,7 +37,7 @@ parser.add_argument('-lst', '--learn_start',  type=int,   default=200,     help=
 
 if __name__ == '__main__':
   FLAGS = parser.parse_args()
-  run = "/run13"
+  run = "/run14"
   # Set constants
   FLAGS.output_path  = "results/"      + FLAGS.network_type + run
   FLAGS.model_path   = FLAGS.output_path + "/model.weights/" 
@@ -50,7 +50,7 @@ if __name__ == '__main__':
 
 
   FLAGS.check_every  = FLAGS.train_steps/20
-  FLAGS.store_weights_every  = 100
+  FLAGS.store_weights_every  = 5000
   FLAGS.log_every    = 500
   FLAGS.target_every = 800
   FLAGS.learn_every  = 1

@@ -181,8 +181,13 @@ class ModelAC(object):
 
         # Update logs if necessary
         if ((t > self.FLAGS.learn_start) and (t % self.FLAGS.log_every == 0)):
+          self.update_averages(rewards, max_q_values, q_values, scores_eval)
           self.update_logs2(t, loss_eval, rewards, exp_schedule.epsilon, grad_eval, lr_schedule.epsilon)
 
+        # Update logs if necessary
+        elif (t < self.FLAGS.learn_start) and (t % self.FLAGS.log_every == 0):
+          sys.stdout.write("\rPopulating the memory {}/{}...".format(t, self.FLAGS.learn_start))
+          sys.stdout.flush()
 
         if ((t > self.FLAGS.learn_start) and (t % self.FLAGS.check_every == 0)):
           # Evaluate current model
@@ -194,6 +199,7 @@ class ModelAC(object):
           # Record video of current model
           if self.FLAGS.record:
             self.record()
+            
         if (t % self.FLAGS.store_weights_every == 0):
           self.network.save_weights()
 
@@ -234,6 +240,7 @@ class ModelAC(object):
           # Record video of current model
           if self.FLAGS.record:
             self.record()
+
         if (t % self.FLAGS.store_weights_every == 0):
           self.network.save_weights()
 

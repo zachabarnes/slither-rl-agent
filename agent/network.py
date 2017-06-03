@@ -377,7 +377,6 @@ class DeepAC(Network):
     return out1, out2
 
   def save_weights(self):
-    print ("STORING")
     var_list = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope = self.scope + "_base")
     weight_var = None
     for el in var_list:
@@ -389,7 +388,6 @@ class DeepAC(Network):
       self.weights_written += 1
       np.savez(fname, conv_weights)
 
-      
 
   def update_actor_step(self, t, replay_buffer, lr, summary):
     s_batch, a_batch, r_batch, sp_batch, done_mask_batch, criticBest_batch, actorDiff_batch = replay_buffer.sample(self.FLAGS.batch_size)
