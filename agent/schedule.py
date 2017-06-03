@@ -15,24 +15,9 @@ class LinearSchedule(object):
 
   def update(self, t):
     """
-    Updates epsilon
-
     Args:
       t: (int) nth frames
     """
-    ##############################################################
-    """
-    TODO: modify self.epsilon such that
-         for t = 0, self.epsilon = self.eps_begin
-         for t = self.nsteps, self.epsilon = self.eps_end
-         linear decay between the two
-
-        self.epsilon should never go under self.eps_end
-    """
-    ##############################################################
-    ################ YOUR CODE HERE - 3-4 lines ##################
-
-
     if t == 0:
       self.epsilon = self.eps_begin
     elif t >= self.nsteps:
@@ -40,9 +25,6 @@ class LinearSchedule(object):
     else:
       eps_decay = 1.0*(self.eps_begin - self.eps_end)/self.nsteps
       self.epsilon = self.eps_begin - t*eps_decay
-
-    ##############################################################
-    ######################## END YOUR CODE ############## ########
 
 
 class LinearExploration(LinearSchedule):
@@ -57,30 +39,112 @@ class LinearExploration(LinearSchedule):
     self.env = env
     super(LinearExploration, self).__init__(eps_begin, eps_end, nsteps)
 
-
   def get_action(self, best_action):
     """
-    Returns a random action with prob epsilon, otherwise return the best_action
-
     Args:
       best_action: (int) best action according some policy
     Returns:
       an action
     """
-    ##############################################################
-    """
-    TODO: with probability self.epsilon, return a random action
-         else, return best_action
-
-         you can access the environment stored in self.env
-         and epsilon with self.epsilon
-    """
-    ##############################################################
-    ################ YOUR CODE HERE - 4-5 lines ##################
-
     if np.random.random() <= self.epsilon:
       return self.env.action_space.sample()
     return best_action
 
-    ##############################################################
-    ######################## END YOUR CODE ############## ########
+class ExpSchedule(object):
+  def __init__(self, eps_begin, eps_end, eps_decay, nsteps, steps_per):
+    """
+    Args:
+      eps_begin: initial exploration
+      eps_decay: decay rate for epsilon
+      nsteps: number of steps before bottom threshold
+    """
+    self.epsilon        = eps_begin
+    self.eps_decay      = eps_decay
+    self.eps_end        = eps_end
+    self.nsteps         = nsteps
+    self.steps_per = steps_per
+
+  def update(self, t):
+    if t == 0:
+      self.epsilon = self.eps_begin
+    elif t >= self.nsteps:
+      self.epsilon = self.eps_end
+    elif (t % self.steps_per == 0):
+      self.epsilon = self.eps_begin*self.eps_decay
+
+class ExpExploration(LinearSchedule):
+  def __init__(self, env, eps_begin, eps_end, eps_decay, nsteps, steps_per):
+    """
+    Args:
+      env: gym environment
+      eps_begin: initial exploration
+      eps_end: end exploration
+      nsteps: number of steps between the two values of eps
+    """
+    self.env = env
+    super(LinearExploration, self).__init__(eps_begin, eps_end, eps_decay, nsteps, steps_per)
+
+  def get_action(self, best_action):
+    """
+    Args:
+      best_action: (int) best action according some policy
+    Returns:
+      an action
+    """
+    if np.random.random() <= self.epsilon:
+      return self.env.action_space.sample()
+    return best_action
+
+class IterSchedule(object):
+  def __init__(self, eps_begin, eps_end, eps_decay1, eps_decay2, nsteps, steps_per, iter_decay):
+    """
+    Args:
+      eps_begin: initial exploration
+      eps_decay: decay rate for epsilon
+      nsteps: number of steps before bottom threshold
+    """
+    self.eps_begin      = eps_begin
+    self.epsilon1       = eps_begin
+    self.epsilon2       = eps_begin
+    self.eps_decay1     = eps_decay1
+    self.eps_decay2     = eps_decay2
+    self.eps_end        = eps_end
+    self.eps_diff       = 0
+    self.nsteps         = nsteps
+    self.steps_per = steps_per
+
+  def update(self, t):
+    if t == 0:
+      self.epsilon1       = self.eps_begin
+      self.epsilon2       = self.eps_begin
+    elif t >= self.nsteps:
+      self.epsilon1       = self.eps_end
+      self.epsilon2       = self.eps_end
+    elif (t % self.steps_per == 0):
+      self.epsilon1       = self.epsilon1*eps_decay1
+      self.epsilon2       = self.epsilon2*eps_decay2
+      self.eps_diff       = abs(self.epsilon1 - self.epsilon2)
+
+class IterSchedule(LinearSchedule):
+  def __init__(self, eps_begin, eps_end, eps_decay1, eps_decay2, nsteps, steps_per, iter_decay):
+    """
+    Args:
+      env: gym environment
+      eps_begin: initial exploration
+      eps_end: end exploration
+      nsteps: number of steps between the two values of eps
+    """
+    self.env = env
+    super(LinearExploration, self).__init__(eps_begin, eps_end, eps_decay1, eps_decay2, nsteps, steps_per,iter_decay)
+
+  def get_action(self, best_action, ep_step_number):
+    """
+    Args:
+      best_action: (int) best action according some policy
+    Returns:
+      an action
+    """
+    iter_epsilon = max(self.epsilon1,self.epsilon2) - self.eps_diff*(iter_decay**ep_step_number)
+    if np.random.random() <= iter_epsilon
+      return self.env.action_space.sample()
+    return best_action
