@@ -34,6 +34,9 @@ parser.add_argument('-lnr', '--learning_rate',type=float, default=0.00025, help=
 parser.add_argument('-eps', '--epsilon',      type=float, default=1.0,     help="Initial Exploration constant (e-greedy)")
 parser.add_argument('-lst', '--learn_start',  type=int,   default=200,     help="Num ep before learning")
 
+parser.add_argument('-clp', '--clip_value',  type=int,   default=10,     help="")
+parser.add_argument('-tgt', '--target_every',  type=int,   default=1000,     help="")
+
 
 if __name__ == '__main__':
   FLAGS = parser.parse_args()
@@ -46,11 +49,11 @@ if __name__ == '__main__':
   FLAGS.record_path  = FLAGS.output_path + "/monitor/"
 
   FLAGS.grad_clip    = True
-  FLAGS.clip_val     = 10
+  #FLAGS.clip_val     = 10
 
   FLAGS.check_every  = FLAGS.train_steps/10
   FLAGS.log_every    = 500
-  FLAGS.target_every = 800
+  #FLAGS.target_every = 800
   FLAGS.learn_every  = 1
 
   FLAGS.gamma        = 0.99
