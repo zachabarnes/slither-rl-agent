@@ -75,13 +75,12 @@ if __name__ == '__main__':
   env.configure(fps=FLAGS.fps, remotes=FLAGS.remotes, start_timeout=15 * 60, vnc_driver='go', vnc_kwargs={'encoding': 'tight', 'compress_level': 0, 'fine_quality_level': 50})
 
   # Make recording env
+  record_env = None
   if FLAGS.record:
     record_env = create_slither_env(FLAGS.state_type)
     record_env = Unvectorize(record_env)
     record_env.configure(fps=30, remotes=1, start_timeout=15 * 60, vnc_driver='go', vnc_kwargs={'encoding': 'tight', 'compress_level': 0, 'fine_quality_level': 50})
     record_env = gym.wrappers.Monitor(record_env, FLAGS.record_path, video_callable=lambda x: True, resume=True)
-  else:
-    record_env = None
 
   # Create network
   if FLAGS.network_type == 'linear_q':

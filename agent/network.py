@@ -41,7 +41,7 @@ class Network(object):
     self.update_target_params()
 
     # for saving network weights
-    self.saver = tf.train.Saver()
+    self.saver = tf.train.Saver(max_to_keep=2)
 
   def get_best_action(self, state):
     action_values = self.sess.run(self.q, feed_dict={self.s: [state]})[0]
@@ -53,7 +53,7 @@ class Network(object):
   def save(self):
     if not os.path.exists(self.FLAGS.model_path):
       os.makedirs(self.FLAGS.model_path)
-    self.saver.save(self.sess, self.FLAGS.model_path, max_to_keep=2)
+    self.saver.save(self.sess, self.FLAGS.model_path)
 
   def load(self, checkpoint):
     if not os.path.exists(self.FLAGS.model_path):
@@ -145,42 +145,6 @@ class Network(object):
     self.file_writer = tf.summary.FileWriter(self.FLAGS.output_path, self.sess.graph)
 
   def add_loss_op(self):
-    raise NotImplementedError()
-
-  def add_optimizer_op(self):
-    raise NotImplementedError()
-
-class LinearQ(Network):
-
-  def add_loss_op(self):
-    #need implementation
-    pass
-
-  def add_optimizer_op(self, scope):
-    #need implementation
-    pass
-
-  def get_q_values_op(self, state, scope, reuse=False):
-    #need implementation
-    pass
-
-class FeedQ(Network):
-
-  def add_loss_op(self):
-    #need implementation
-    pass
-
-  def add_optimizer_op(self, scope):
-    #need implementation
-    pass
-
-  def get_q_values_op(self, state, scope, reuse=False):
-    #need implementation
-    pass
-
-class DeepQ(Network):
-
-  def add_loss_op(self):
     self.q = self.get_q_values_op(self.proc_s, scope=self.scope, reuse=False)
     self.target_q = self.get_q_values_op(self.proc_sp, scope=self.target_scope, reuse=False)
 
@@ -207,6 +171,25 @@ class DeepQ(Network):
       self.train_op = opt.apply_gradients(grads_and_vars)
       self.grad_norm = tf.global_norm([grads for grads, _ in grads_and_vars])
 
+class LinearQ(Network):
+  def get_q_values_op(self, state, scope, reuse=False):
+    with tf.variable_scope(scope):
+      out = layers.flatten(state, scope=scope)
+      out = layers.fully_connected(inputs=out, num_outputs = self.num_actions, activation_fn=None, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"1")
+    return out
+
+class FeedQ(Network):
+  def get_q_values_op(self, state, scope, reuse=False):
+    with tf.variable_scope(scope):
+      out = layers.flatten(state, scope=scope)
+      out = layers.fully_connected(inputs=out, num_outputs = 32, activation_fn=None, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"1")
+      out = tf.nn.relu(out)
+      out = layers.fully_connected(inputs=out, num_outputs = 64, activation_fn=None, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"2")
+      out = tf.nn.relu(out)
+      out = layers.fully_connected(inputs=out, num_outputs = self.num_actions, activation_fn=None, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"3")
+    return out
+
+class DeepQ(Network):
   def get_q_values_op(self, state, scope, reuse=False):
     with tf.variable_scope(scope):
       out = layers.conv2d(inputs=state, num_outputs = 32, kernel_size=[8,8], stride=[4,4], padding="SAME", activation_fn=tf.nn.relu, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"1")

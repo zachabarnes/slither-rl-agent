@@ -11,10 +11,12 @@ import tensorflow as tf
 import tensorflow.contrib.layers as layers
 
 from gym import wrappers
+from universe.wrappers import Unvectorize
 from collections import deque
 
 from utils.general import get_logger, Progbar, export_plot
 from utils.replay_buffer import ReplayBuffer
+from utils.env import create_slither_env
 
 class Summary(object):
   def __init__(self):
@@ -174,8 +176,10 @@ class Model(object):
 
           if ep_len <= 0 or t >= self.FLAGS.train_steps: break
         continual_crash = 0
+
       except Exception as e:
         continual_crash +=1
+        self.logger.info(e)
         if continual_crash >= 10:
           self.logger.info("Crashed 10 times -- stopping u suck")
           raise e
@@ -186,6 +190,7 @@ class Model(object):
           self.env = create_slither_env(self.FLAGS.state_type)
           self.env = Unvectorize(self.env)
           self.env.configure(fps=self.FLAGS.fps, remotes=self.FLAGS.remotes, start_timeout=15 * 60, vnc_driver='go', vnc_kwargs={'encoding': 'tight', 'compress_level': 0, 'fine_quality_level': 50})
+          time.sleep(60)
 
     # End of training
     self.logger.info("- Training done.")
