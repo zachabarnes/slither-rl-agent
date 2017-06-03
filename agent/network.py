@@ -219,6 +219,7 @@ class DeepQ(Network):
 
 class DeepAC(Network):
   def __init__(self, FLAGS):
+    self.weights_written = 0
     self.FLAGS = FLAGS
     self.num_actions = FLAGS.num_actions
     self.img_height, self.img_width, self.img_depth = FLAGS.state_size
@@ -319,6 +320,13 @@ class DeepAC(Network):
     #need implementation
     opt = tf.train.AdamOptimizer(self.lr)
     var_list = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope = self.scope + "_base")
+    for el in var_list:
+      print (el)
+    weight_var = None
+    for el in var_list:
+      if el.name == "scope_base_1/weights:0":
+        weight_var = el
+    print (weight_var)
     var_list.extend(tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope = self.scope + "_actor"))
     grads_and_vars = opt.compute_gradients(self.actorLoss, var_list = var_list)
     clipped_grads_and_vars=[]
@@ -359,8 +367,8 @@ class DeepAC(Network):
 
   def get_actor_critic_values(self, state, scope, reuse=False):
     #with tf.variable_scope(scope):
-    out = layers.conv2d(inputs=state, num_outputs = 32, kernel_size=[8,8], stride=[4,4], padding="SAME", activation_fn=tf.nn.relu, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"_base_1")
-    out = layers.conv2d(inputs=out, num_outputs = 64, kernel_size=[4,4], stride=[2,2], padding="SAME", activation_fn=tf.nn.relu, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"_base_2")
+    self.convLayer1 = layers.conv2d(inputs=state, num_outputs = 32, kernel_size=[8,8], stride=[4,4], padding="SAME", activation_fn=tf.nn.relu, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"_base_1")
+    out = layers.conv2d(inputs = self.convLayer1, num_outputs = 64, kernel_size=[4,4], stride=[2,2], padding="SAME", activation_fn=tf.nn.relu, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"_base_2")
     out = layers.conv2d(inputs=out, num_outputs = 64, kernel_size=[3,3], stride=[1,1], padding="SAME", activation_fn=tf.nn.relu, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"_base_3")
     out = layers.flatten(out, scope=scope)
     out = layers.fully_connected(inputs=out, num_outputs = 512, activation_fn=tf.nn.relu, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"_base_4")
@@ -368,6 +376,20 @@ class DeepAC(Network):
     out2 = layers.fully_connected(inputs=out, num_outputs = 1, activation_fn = None, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"_critic")
     return out1, out2
 
+  def save_weights(self):
+    print ("STORING")
+    var_list = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope = self.scope + "_base")
+    weight_var = None
+    for el in var_list:
+      if el.name == "scope_base_1/weights:0":
+        weight_var = el
+    with self.sess.as_default():
+      conv_weights = weight_var.eval()
+      fname = self.FLAGS.output_path + "/weights" + str(self.weights_written) + ".npz"
+      self.weights_written += 1
+      np.savez(fname, conv_weights)
+
+      
 
   def update_actor_step(self, t, replay_buffer, lr, summary):
     s_batch, a_batch, r_batch, sp_batch, done_mask_batch, criticBest_batch, actorDiff_batch = replay_buffer.sample(self.FLAGS.batch_size)

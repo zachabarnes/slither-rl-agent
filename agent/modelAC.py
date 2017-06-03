@@ -135,7 +135,6 @@ class ModelAC(object):
         new_val = self.network.calcState(q_input)
         orig_val = orig_val[0][0]
         new_val = new_val[0][0]
-        print (orig_val, new_reward, done, new_val, ep_len)
 
 
         if not done: # Non-terminal state.
@@ -143,15 +142,21 @@ class ModelAC(object):
         else:
           target = reward + ( self.FLAGS.gamma * new_reward )
 
-        best_val = max((orig_val), target)
+        best_val = max((self.FLAGS.gamma * orig_val), target)
+
+        print (orig_val, new_reward, done, new_val, ep_len, new_val-orig_val, best_val)
+
 
         actor_delta = new_val - orig_val
 
-        replay_buffer.store_effect(idx-1, action, new_reward, done, best_val, actor_delta)
         state = new_state
 
         if done:
-          replay_buffer.store_effect(idx, action, 0, done, 0, 0)
+          replay_buffer.store_effect(idx-1, action, new_reward, done, -20, actor_delta)
+          replay_buffer.store_effect(idx, action, -20, done, -20, -20)
+        else:
+          replay_buffer.store_effect(idx-1, action, new_reward, done, -20, actor_delta)
+
 
         # Count reward
         total_reward += new_reward
@@ -163,6 +168,8 @@ class ModelAC(object):
 
       old_t = t
       temp_ep_len = ep_len
+      rewards.append(total_reward)
+
       while True:
         t += 1
         temp_ep_len -= 1
@@ -176,10 +183,23 @@ class ModelAC(object):
         if ((t > self.FLAGS.learn_start) and (t % self.FLAGS.log_every == 0)):
           self.update_logs2(t, loss_eval, rewards, exp_schedule.epsilon, grad_eval, lr_schedule.epsilon)
 
+
+        if ((t > self.FLAGS.learn_start) and (t % self.FLAGS.check_every == 0)):
+          # Evaluate current model
+          scores_eval += [self.evaluate(self.env, self.FLAGS.num_test)]
+
+          # Save current Model
+          self.network.save()
+
+          # Record video of current model
+          if self.FLAGS.record:
+            self.record()
+        if (t % self.FLAGS.store_weights_every == 0):
+          self.network.save_weights()
+
         if temp_ep_len <= 0 or t >= self.FLAGS.train_steps: break
 
 
-      rewards.append(total_reward)
 
       # Learn using replay
       while True:
@@ -214,6 +234,8 @@ class ModelAC(object):
           # Record video of current model
           if self.FLAGS.record:
             self.record()
+        if (t % self.FLAGS.store_weights_every == 0):
+          self.network.save_weights()
 
         if ep_len <= 0 or t >= self.FLAGS.train_steps: break
 

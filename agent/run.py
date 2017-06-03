@@ -18,8 +18,8 @@ from model import Model
 parser = argparse.ArgumentParser(description="Run commands")
 
 # Model params
-parser.add_argument('-net', '--network_type', type=str,  default="deep_q",               help="Network type (linear_q, feedforward_q, deep_q, deep_ac")
-parser.add_argument('-mod', '--model_type',   type=str,  default="q",               help="Network type (q, ac)")
+parser.add_argument('-net', '--network_type', type=str,  default="deep_ac",               help="Network type (linear_q, feedforward_q, deep_q, deep_ac")
+parser.add_argument('-mod', '--model_type',   type=str,  default="ac",                    help="Network type (q, ac)")
 parser.add_argument('-typ', '--state_type',   type=str,  default="shapes",                help="State type (features, colors, shapes)")
 parser.add_argument('-rem', '--remotes',      type=int,  default=1,                       help='Number of remotes to run')
 parser.add_argument('-env', '--env-id',       type=str,  default="internet.SlitherIO-v0", help="Environment id")
@@ -37,10 +37,10 @@ parser.add_argument('-lst', '--learn_start',  type=int,   default=200,     help=
 
 if __name__ == '__main__':
   FLAGS = parser.parse_args()
-
+  run = "/run13"
   # Set constants
-  FLAGS.output_path  = "results/"      + FLAGS.network_type
-  FLAGS.model_path   = FLAGS.output_path + "/model.weights/"
+  FLAGS.output_path  = "results/"      + FLAGS.network_type + run
+  FLAGS.model_path   = FLAGS.output_path + "/model.weights/" 
   FLAGS.log_path     = FLAGS.output_path + "/log.txt"
   FLAGS.plot_path    = FLAGS.output_path + "/scores.png"
   FLAGS.record_path  = FLAGS.output_path + "/monitor/"
@@ -49,7 +49,8 @@ if __name__ == '__main__':
   FLAGS.clip_val     = 10
 
 
-  FLAGS.check_every  = FLAGS.train_steps/10
+  FLAGS.check_every  = FLAGS.train_steps/20
+  FLAGS.store_weights_every  = 100
   FLAGS.log_every    = 500
   FLAGS.target_every = 800
   FLAGS.learn_every  = 1
