@@ -31,31 +31,22 @@ git clone https://github.com/openai/universe.git
 cd universe
 pip install -e .
 ```
-
-- Install rest of needed packages
+- Install codebase and packages
 ```
-cd ..
+git clone https://github.com/zabarnes/RattLe.git
+cd RattLe
 pip install -r requirements.txt
 ```
 
 - Install [docker](https://www.digitalocean.com/community/tutorials/how-to-install-and-use-docker-on-ubuntu-16-04) for ubuntu 16.04 **MAKE SURE TO DO STEP 2 AS WELL**
 
-- Install extra packages
-```
-conda install opencv
-```
-
 - Restart VM
-
-- OPTIONAL: clone RattLe source code
-```
-git clone https://github.com/zabarnes/RattLe.git
-```
 
 ### Test installation
 
 Run the test agent script
 ```
+cd RattLe
 python test.py
 ```
 you should see a tiny rendering of the game or "yay" on the command line.
