@@ -18,7 +18,7 @@ from model import Model
 parser = argparse.ArgumentParser(description="Run commands")
 
 # Model params
-parser.add_argument('-net', '--network_type', type=str,  default="deep_q",               help="Network type (linear_q, feedforward_q, deep_q, deep_ac, rec_q")
+parser.add_argument('-net', '--network_type', type=str,  default="deep_q",               help="Network type (linear_q, feedforward_q, deep_q, deep_ac, recurent_q")
 parser.add_argument('-mod', '--model_type',   type=str,  default="q",                     help="Network type (q, ac)")
 parser.add_argument('-typ', '--state_type',   type=str,  default="colors",                help="State type (features, colors, shapes)")
 parser.add_argument('-rem', '--remotes',      type=int,  default=1,                       help='Number of remotes to run')
@@ -89,6 +89,9 @@ if __name__ == '__main__':
 
   elif FLAGS.network_type == 'deep_q':
     network = network.DeepQ(FLAGS)
+
+  elif FLAGS.network_type == 'recurent_q':
+    network = network.RecurrentQ(FLAGS)
 
   elif FLAGS.network_type == 'deep_ac':
     network = network.DeepAC(FLAGS)
