@@ -17,6 +17,8 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 universe.configure_logging()
 
+from slither_env import create_slither_env
+
 def create_env(env_id, client_id, remotes, **kwargs):
     spec = gym.spec(env_id)
 
@@ -85,55 +87,13 @@ def create_atari_env(env_id):
     return env
 
 def create_internet_env(env_id, client_id, remotes, **_):
-    env = gym.make(env_id)
-    env = Vision(env)
-    env = Logger(env)
-    env = BlockingReset(env)
-
-    env = CropScreen(env, 300, 500, 84, 18)
-    env = SlitherRescale(env)
-    env = DiscreteToFixedKeysVNCActions(env, ['left', 'right', 'space', 'left space', 'right space'])
-    env = EpisodeID(env)
-    #env = RenderWrapper(env)
+    env = create_slither_env('shapes')
     env = DiagnosticsInfo(env)
     env = Unvectorize(env)
     env.configure(fps=5.0, remotes=remotes, start_timeout=15 * 60, client_id=client_id, vnc_driver='go', vnc_kwargs={
                     'encoding': 'tight', 'compress_level': 0, 'fine_quality_level': 50, 'subsample_level': 3})
+    #env.observation_space.shape = [30, 50, 1]
     return env
-
-def slither_process(frame):
-    frame = frame[0]
-    abs_t = 115
-    frame[(frame[:,:,0]<abs_t)*(frame[:,:,1]<abs_t)*(frame[:,:,2]<abs_t)] = 0
-    
-    rel_t = 30
-    avg_pix = np.mean(frame,2)
-    diff = np.abs(avg_pix-frame[:,:,0]) + np.abs(avg_pix-frame[:,:,1]) + np.abs(avg_pix-frame[:,:,2])
-    frame[:,:,:] = 255
-    frame[diff<rel_t] = 0
-    
-    sing_frame = ndimage.grey_erosion(frame[:,:,1], size=(2,2))
-    blur_radius = .35
-    sing_frame = ndimage.gaussian_filter(sing_frame, blur_radius)
-    labeled, nr_objects = ndimage.label(sing_frame)
-    
-    snake_threshold = 235
-    enemy_c = [255,0,0]
-    me_c = [0,255,0]
-    food_c = [0,0,255]
-    frame[:,:,:] = 0
-    me_label = np.bincount(labeled[145:155,245:255].flatten().astype(int))[1:]
-    me_label = np.argmax(me_label) + 1
-    for i in range(nr_objects):
-        label = i+1
-        size = np.count_nonzero(labeled[labeled==label])
-        if size<snake_threshold:
-            frame[labeled==label] = food_c
-        elif me_label  == label:
-            frame[labeled==label] = me_c
-        else:
-            frame[labeled==label] = enemy_c
-    return [frame]
 
 def DiagnosticsInfo(env, *args, **kwargs):
     return vectorized.VectorizeFilter(env, DiagnosticsInfoI, *args, **kwargs)
@@ -242,57 +202,6 @@ class AtariRescale42x42(vectorized.ObservationWrapper):
 
     def _observation(self, observation_n):
         return [_process_frame42(observation) for observation in observation_n]
-
-def slither_vnc(space=False, left=False, right=False):
-    return [universe.spaces.KeyEvent.by_name('space', down=space),
-            universe.spaces.KeyEvent.by_name('left', down=left),
-            universe.spaces.KeyEvent.by_name('right', down=right)]
-
-def _process_frame_slither(frame):
-    print "PLZZZZZZZZZZZZZZZZZZZZ" + str(frame.shape)
-    abs_t = 115
-    frame[(frame[:,:,0]<abs_t)*(frame[:,:,1]<abs_t)*(frame[:,:,2]<abs_t)] = 0
-    
-    rel_t = 30
-    avg_pix = np.mean(frame,2)
-    diff = np.abs(avg_pix-frame[:,:,0]) + np.abs(avg_pix-frame[:,:,1]) + np.abs(avg_pix-frame[:,:,2])
-    frame[:,:,:] = 255
-    frame[diff<rel_t] = 0
-    
-    sing_frame = ndimage.grey_erosion(frame[:,:,1], size=(2,2))
-    blur_radius = .35
-    sing_frame = ndimage.gaussian_filter(sing_frame, blur_radius)
-    labeled, nr_objects = ndimage.label(sing_frame)
-    
-    snake_threshold = 235
-    enemy_c = [255,0,0]
-    me_c = [0,255,0]
-    food_c = [0,0,255]
-    frame[:,:,:] = 0
-    me_label = np.bincount(labeled[145:155,245:255].flatten().astype(int))[1:]
-    me_label = np.argmax(me_label) + 1
-    for i in range(nr_objects):
-        label = i+1
-        size = np.count_nonzero(labeled[labeled==label])
-        if size<snake_threshold:
-            frame[labeled==label] = food_c
-        elif me_label  == label:
-            frame[labeled==label] = me_c
-        else:
-            frame[labeled==label] = enemy_c
-
-    frame = cv2.resize(frame, (200, 128))
-    print frame.shape
-    frame = np.reshape(frame, [128, 200, 1])
-    return frame
-
-class SlitherRescale(vectorized.ObservationWrapper):
-    def __init__(self, env=None):
-        super(SlitherRescale, self).__init__(env)
-        self.observation_space = Box(0.0, 255, [128, 200, 1])
-
-    def _observation(self, observation_n):
-        return [_process_frame_slither(observation) for observation in observation_n]
 
 class FixedKeyState(object):
     def __init__(self, keys):

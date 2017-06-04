@@ -32,7 +32,7 @@ parser.add_argument('-tst', '--num_test',     type=int,   default=10,      help=
 parser.add_argument('-bat', '--batch_size',   type=int,   default=32,      help="Batch_size")
 parser.add_argument('-lnr', '--learning_rate',type=float, default=0.00025, help="Initial learning rate")
 parser.add_argument('-eps', '--epsilon',      type=float, default=1.0,     help="Initial Exploration constant (e-greedy)")
-parser.add_argument('-lst', '--learn_start',  type=int,   default=2000,     help="Num ep before learning")
+parser.add_argument('-lst', '--learn_start',  type=int,   default=5000,     help="Num ep before learning")
 
 parser.add_argument('-clp', '--clip_val',  type=int,   default=10,     help="")
 parser.add_argument('-tgt', '--target_every',  type=int,   default=2000,     help="")
@@ -66,7 +66,7 @@ if __name__ == '__main__':
   FLAGS.state_hist   = 4
 
   # Make rl environment
-  universe.configure_logging(False)
+  #universe.configure_logging(False)
   env = create_slither_env(FLAGS.state_type)
 
   FLAGS.state_size   = env.state_size
