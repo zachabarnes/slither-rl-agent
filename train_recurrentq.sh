@@ -6,4 +6,4 @@ rm -r nohup.out
 rm -r results/recurrent_q/events.out.tfevents*
 rm -r results/recurrent_q/log.txt
 tensorboard --logdir=results/recurrent_q/ &
-nohup python run.py -net recurrent_q -mod q &
+nohup python run.py --network_type recurrent_q --model_type q --learn_start 50 --target_every 50 --num_test 2&
