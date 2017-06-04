@@ -204,7 +204,7 @@ class RecurrentQ(Network):
   def get_q_values_op(self, state, scope, reuse=False):
     with tf.variable_scope(scope):
       frames = tf.split(state, self.FLAGS.state_hist, axis=3)
-      cnn_frames = [self.cnn_network(f, scope, reuse=True) for f in frames]
+      cnn_frames = [self.cnn_network(f, scope, reuse=False) if i == 0 else self.cnn_network(f, scope, reuse=True) for i,f in enumerate(frames)]
       cnn_tensor_input = tf.stack(cnn_frames,axis=1)
 
       lstm_cell = tf.contrib.rnn.BasicLSTMCell(512)
