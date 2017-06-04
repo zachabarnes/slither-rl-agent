@@ -137,7 +137,7 @@ class Model(object):
           if done: break
 
         #Store episodic rewards
-        rewards.append(total_reward)
+        if ep_len > 1: rewards.append(total_reward)
 
         # Learn using replay
         while True:
@@ -180,7 +180,7 @@ class Model(object):
       except Exception as e:
         continual_crash +=1
         self.logger.info(e)
-        if continual_crash >= 1:
+        if continual_crash >= 10:
           self.logger.info("Crashed 10 times -- stopping u suck")
           raise e
         else:
