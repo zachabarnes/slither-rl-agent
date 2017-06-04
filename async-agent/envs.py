@@ -87,7 +87,7 @@ def create_atari_env(env_id):
     return env
 
 def create_internet_env(env_id, client_id, remotes, **_):
-    env = create_slither_env('shapes')
+    env = create_slither_env('colors')
     env = DiagnosticsInfo(env)
     env = Unvectorize(env)
     env.configure(fps=5.0, remotes=remotes, start_timeout=15 * 60, client_id=client_id, vnc_driver='go', vnc_kwargs={

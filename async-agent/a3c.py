@@ -167,7 +167,7 @@ But overall, we'll define the model, specify its inputs, and describe how the po
 should be computed.
 """
         self.visualise = visualise
-        self.observation_space = [30,50,1]
+        self.observation_space = [30,50,3]
         self.env = env
         self.task = task
         worker_device = "/job:worker/task:{}/cpu:0".format(task)
