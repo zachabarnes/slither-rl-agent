@@ -166,6 +166,7 @@ Below, we will have a modest amount of complexity due to the way TensorFlow hand
 But overall, we'll define the model, specify its inputs, and describe how the policy gradients step
 should be computed.
 """
+        self.visualise = visualise
         self.observation_space = [30,50,1]
         self.env = env
         self.task = task
@@ -242,6 +243,9 @@ should be computed.
             self.train_op = tf.group(opt.apply_gradients(grads_and_vars), inc_step)
             self.summary_writer = None
             self.local_steps = 0
+    def update_env(env):
+        self.env = env
+        self.runner = RunnerThread(self.env, self.local_network, 20, self.visualise)
 
     def start(self, sess, summary_writer):
         self.runner.start_runner(sess, summary_writer)
