@@ -9,13 +9,13 @@ parser.add_argument('-w', '--num-workers', default=1, type=int,
 parser.add_argument('-r', '--remotes', default=None,
                     help='The address of pre-existing VNC servers and '
                          'rewarders to use (e.g. -r vnc://localhost:5900+15900,vnc://localhost:5901+15901).')
-parser.add_argument('-e', '--env-id', type=str, default="PongDeterministic-v3",
+parser.add_argument('-e', '--env-id', type=str, default="internet.SlitherIO-v0",
                     help="Environment id")
-parser.add_argument('-l', '--log-dir', type=str, default="/tmp/pong",
+parser.add_argument('-l', '--log-dir', type=str, default="/tmp/slither",
                     help="Log directory path")
 parser.add_argument('-n', '--dry-run', action='store_true',
                     help="Print out commands rather than executing them")
-parser.add_argument('-m', '--mode', type=str, default='tmux',
+parser.add_argument('-m', '--mode', type=str, default='nohup',
                     help="tmux: run workers in a tmux session. nohup: run workers with nohup. child: run workers as child processes")
 
 # Add visualise tag
@@ -57,7 +57,7 @@ def create_commands(session, num_workers, remotes, env_id, logdir, shell='bash',
         cmds_map += [new_cmd(session,
             "w-%d" % i, base_cmd + ["--job-name", "worker", "--task", str(i), "--remotes", remotes[i]], mode, logdir, shell)]
 
-    cmds_map += [new_cmd(session, "tb", ["tensorboard", "--logdir", logdir, "--port", "12345"], mode, logdir, shell)]
+    cmds_map += [new_cmd(session, "tb", ["tensorboard", "--logdir", logdir, "--port", "6006"], mode, logdir, shell)]
     if mode == 'tmux':
         cmds_map += [new_cmd(session, "htop", ["htop"], mode, logdir, shell)]
 
