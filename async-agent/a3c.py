@@ -243,7 +243,8 @@ should be computed.
             self.train_op = tf.group(opt.apply_gradients(grads_and_vars), inc_step)
             self.summary_writer = None
             self.local_steps = 0
-    def update_env(env):
+
+    def update_env(self,env):
         self.env = env
         self.runner = RunnerThread(self.env, self.local_network, 20, self.visualise)
 
