@@ -208,7 +208,7 @@ class RecurrentQ(Network):
       cnn_tensor_input = tf.stack(cnn_frames,axis=1)
 
       lstm_cell = tf.contrib.rnn.BasicLSTMCell(512)
-      lstm_out = tf.dynamic_rnn(lstm_cell,cnn_tensor_input,scope=scope)
+      lstm_out = tf.nn.dynamic_rnn(lstm_cell,cnn_tensor_input,scope=scope)
       q_vals = layers.fully_connected(inputs=lstm_out, num_outputs = self.num_actions, activation_fn=None, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"fc")
       return q_vals
 
