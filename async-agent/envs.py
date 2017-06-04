@@ -91,7 +91,7 @@ def create_internet_env(env_id, client_id, remotes, **_):
     env = DiagnosticsInfo(env)
     env = Unvectorize(env)
     env.configure(fps=5.0, remotes=remotes, start_timeout=15 * 60, client_id=client_id, vnc_driver='go', vnc_kwargs={
-                    'encoding': 'tight', 'compress_level': 0, 'fine_quality_level': 50, 'subsample_level': 3})
+                    'encoding': 'tight', 'compress_level': 0, 'fine_quality_level': 50})
     #env.observation_space.shape = [30, 50, 1]
     return env
 
