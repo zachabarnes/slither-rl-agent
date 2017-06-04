@@ -78,8 +78,14 @@ def run(args, server):
         global_step = sess.run(trainer.global_step)
         logger.info("Starting training at step=%d", global_step)
         while not sv.should_stop() and (not num_global_steps or global_step < num_global_steps):
-            trainer.process(sess)
-            global_step = sess.run(trainer.global_step)
+            try:
+                trainer.process(sess)
+                global_step = sess.run(trainer.global_step)
+            except Exception as e:
+                time.sleep(5)
+                logger.info("new ENVironment")
+                trainer.env = create_env(args.env_id, client_id=str(args.task), remotes=args.remotes)
+
 
     # Ask for all the services to stop.
     sv.stop()
