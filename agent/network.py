@@ -210,6 +210,7 @@ class RecurrentQ(Network):
       lstm_cell = tf.contrib.rnn.BasicLSTMCell(512)
       _, lstm_out = tf.nn.dynamic_rnn(lstm_cell,cnn_tensor_input,dtype=tf.float32,scope=scope)
       q_vals = layers.fully_connected(inputs=lstm_out, num_outputs = self.num_actions, activation_fn=None, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"fc")
+      assert(q_vals.get_shape().as_list() == [None, self.num_actions])
       return q_vals
 
   def cnn_network(self, frame, scope, reuse=False):

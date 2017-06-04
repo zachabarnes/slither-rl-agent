@@ -180,7 +180,7 @@ class Model(object):
       except Exception as e:
         continual_crash +=1
         self.logger.info(e)
-        if continual_crash >= 10:
+        if continual_crash >= 1:
           self.logger.info("Crashed 10 times -- stopping u suck")
           raise e
         else:
