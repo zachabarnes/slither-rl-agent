@@ -200,6 +200,26 @@ class DeepQ(Network):
       out = layers.fully_connected(inputs=out, num_outputs = self.num_actions, activation_fn = None, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"5")
     return out
 
+class RecurrentQ(Network):
+  def get_q_values_op(self, state, scope, reuse=False):
+    with tf.variable_scope(scope):
+      frames = tf.split(state, self.FLAGS.state_hist, axis=3)
+      cnn_frames = [cnn_network(f, scope, reuse=True) for f in frames]
+      cnn_tensor_input = tf.stack(cnn_frames,axis=1)
+
+      lstm_cell = tf.contrib.rnn.BasicLSTMCell(512)
+      lstm_out = tf.dynamic_rnn(lstm_cell,cnn_tensor_input,scope=scope)
+      q_vals = layers.fully_connected(inputs=lstm_out, num_outputs = self.num_actions, activation_fn=None, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"fc")
+      return q_vals
+
+  def cnn_network(frame, scope, reuse=False):
+    out = layers.conv2d(inputs=state, num_outputs = 32, kernel_size=[8,8], stride=[4,4], padding="SAME", activation_fn=tf.nn.relu, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"1", reuse=reuse)
+    out = layers.conv2d(inputs=out, num_outputs = 64, kernel_size=[4,4], stride=[2,2], padding="SAME", activation_fn=tf.nn.relu, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"2", reuse=reuse)
+    out = layers.conv2d(inputs=out, num_outputs = 64, kernel_size=[3,3], stride=[1,1], padding="SAME", activation_fn=tf.nn.relu, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"3", reuse=reuse)
+    out = layers.flatten(out, scope=scope)
+    out = layers.fully_connected(inputs=out, num_outputs = 512, activation_fn=tf.nn.relu, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"4", reuse=reuse)
+    return out
+
 class DeepAC(Network):
   def __init__(self, FLAGS):
     self.FLAGS = FLAGS

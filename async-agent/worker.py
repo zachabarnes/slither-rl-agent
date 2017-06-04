@@ -85,7 +85,8 @@ def run(args, server):
                 time.sleep(5)
                 logger.info("new ENVironment")
                 trainer.update_env(create_env(args.env_id, client_id=str(args.task), remotes=args.remotes))
-                time.sleep(15)
+                sess.run(trainer.sync)
+                trainer.start(sess, summary_writer)
 
     # Ask for all the services to stop.
     sv.stop()

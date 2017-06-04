@@ -18,13 +18,13 @@ from model import Model
 parser = argparse.ArgumentParser(description="Run commands")
 
 # Model params
-parser.add_argument('-net', '--network_type', type=str,  default="deep_q",               help="Network type (linear_q, feedforward_q, deep_q, deep_ac")
-parser.add_argument('-mod', '--model_type',   type=str,  default="q",               help="Network type (q, ac)")
-parser.add_argument('-typ', '--state_type',   type=str,  default="shapes",                help="State type (features, colors, shapes)")
+parser.add_argument('-net', '--network_type', type=str,  default="deep_q",               help="Network type (linear_q, feedforward_q, deep_q, deep_ac, rec_q")
+parser.add_argument('-mod', '--model_type',   type=str,  default="q",                     help="Network type (q, ac)")
+parser.add_argument('-typ', '--state_type',   type=str,  default="colors",                help="State type (features, colors, shapes)")
 parser.add_argument('-rem', '--remotes',      type=int,  default=1,                       help='Number of remotes to run')
 parser.add_argument('-env', '--env-id',       type=str,  default="internet.SlitherIO-v0", help="Environment id")
-parser.add_argument('-rec', '--record',       type=bool, default=False,                    help="Record videos during train")
-parser.add_argument('-buf', '--buffer_size',  type=int,  default=500000,                   help="Size of replay buffer")
+parser.add_argument('-rec', '--record',       type=bool, default=False,                   help="Record videos during train")
+parser.add_argument('-buf', '--buffer_size',  type=int,  default=100000,                  help="Size of replay buffer")
 
 # Train Params
 parser.add_argument('-trn', '--train_steps',  type=int,   default=500000,  help="Number of steps to train")
@@ -32,10 +32,10 @@ parser.add_argument('-tst', '--num_test',     type=int,   default=10,      help=
 parser.add_argument('-bat', '--batch_size',   type=int,   default=32,      help="Batch_size")
 parser.add_argument('-lnr', '--learning_rate',type=float, default=0.00025, help="Initial learning rate")
 parser.add_argument('-eps', '--epsilon',      type=float, default=1.0,     help="Initial Exploration constant (e-greedy)")
-parser.add_argument('-lst', '--learn_start',  type=int,   default=5000,     help="Num ep before learning")
+parser.add_argument('-lst', '--learn_start',  type=int,   default=5000,    help="Num ep before learning")
 
-parser.add_argument('-clp', '--clip_val',  type=int,   default=10,     help="")
-parser.add_argument('-tgt', '--target_every',  type=int,   default=2000,     help="")
+parser.add_argument('-clp', '--clip_val',      type=int,  default=10,       help="")
+parser.add_argument('-tgt', '--target_every',  type=int,  default=5000,     help="")
 
 
 if __name__ == '__main__':
@@ -49,11 +49,9 @@ if __name__ == '__main__':
   FLAGS.record_path  = FLAGS.output_path + "/monitor/"
 
   FLAGS.grad_clip    = True
-  #FLAGS.clip_val     = 10
 
   FLAGS.check_every  = FLAGS.train_steps/10
   FLAGS.log_every    = 500
-  #FLAGS.target_every = 800
   FLAGS.learn_every  = 1
 
   FLAGS.gamma        = 0.99
@@ -65,8 +63,6 @@ if __name__ == '__main__':
   FLAGS.fps          = 5
   FLAGS.state_hist   = 4
 
-  # Make rl environment
-  #universe.configure_logging(False)
   env = create_slither_env(FLAGS.state_type)
 
   FLAGS.state_size   = env.state_size
