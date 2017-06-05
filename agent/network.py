@@ -7,6 +7,10 @@ import numpy as np
 import tensorflow as tf
 import tensorflow.contrib.layers as layers
 
+import tensorflow as tf
+import tensorflow.contrib.slim as slim
+import tensorflow.contrib.slim.nets
+
 class Network(object):
   def __init__(self, FLAGS):
     self.FLAGS = FLAGS
@@ -27,6 +31,11 @@ class Network(object):
     self.add_update_target_op()
 
     self.add_optimizer_op()
+
+  def record_initialize(self, checkpoint_path):
+    self.sess = tf.Session()
+    self.saver = tf.train.Saver(max_to_keep=2)
+    self.load(checkpoint_path)
 
   def initialize(self):
     self.sess = tf.Session()
@@ -55,10 +64,9 @@ class Network(object):
       os.makedirs(self.FLAGS.model_path)
     self.saver.save(self.sess, self.FLAGS.model_path)
 
-  def load(self, checkpoint):
-    if not os.path.exists(self.FLAGS.model_path):
-      os.makedirs(self.FLAGS.model_path)
-    self.saver.save(self.sess, self.FLAGS.model_path)
+  def load(self, checkpoint_path):
+    assert os.path.exists(checkpoint_path)
+    self.saver.restore(self.sess, checkpoint_path)
 
   def add_placeholders_op(self):
     self.s = tf.placeholder(tf.uint8, [None, self.img_height, self.img_width, self.img_depth*self.FLAGS.state_hist])
@@ -199,6 +207,147 @@ class DeepQ(Network):
       out = layers.fully_connected(inputs=out, num_outputs = 512, activation_fn=tf.nn.relu, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"4")
       out = layers.fully_connected(inputs=out, num_outputs = self.num_actions, activation_fn = None, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"5")
     return out
+
+class TransferQ(Network):
+  def __init__(self, FLAGS):
+    self.FLAGS = FLAGS
+    self.num_actions = FLAGS.num_actions
+    self.img_height, self.img_width, self.img_depth = FLAGS.state_size
+    self.vgg = tf.contrib.slim.nets.vgg
+    self.lstm_size = 64
+
+    self.trainable_scope_vars = {}
+    self.all_scope_vars = {}
+    self.scope_init = {}
+
+  def build(self):
+    self.scope = "scope"
+    self.target_scope = "target_scope"
+
+    self.add_placeholders_op()
+
+    self.proc_s = self.process_state(self.s)
+    self.proc_sp = self.process_state(self.sp)
+
+    self.load_model_and_graph_op()
+
+    self.add_loss_op()
+
+    self.transfer_loaded_graph_op()
+
+    self.add_update_target_op()
+
+    self.add_optimizer_op()
+
+  def load_model_and_graph_op(self):
+    dummy_size = tf.split(self.proc_s, self.FLAGS.state_hist, axis=3)[0]
+    with slim.arg_scope(self.vgg.vgg_arg_scope()):
+      q_vals, _ = self.vgg.vgg_16(dummy_size, num_classes=self.lstm_size)
+
+    model_path = './vgg_16.ckpt'
+    assert(os.path.isfile(model_path))
+
+    variables_to_restore = tf.contrib.framework.get_variables_to_restore(exclude=['vgg_16/fc8',self.scope,self.target_scope])
+    print(variables_to_restore)
+    self.init_fn = tf.contrib.framework.assign_from_checkpoint_fn(model_path, variables_to_restore)
+
+    fc8_variables = tf.contrib.framework.get_variables('vgg_16/fc8')
+    self.fc8_init = tf.variables_initializer(fc8_variables)
+    self.all_loaded_vars = variables_to_restore + fc8_variables
+
+  def get_q_values_op(self, state, scope, reuse=False):
+    with tf.variable_scope(scope):
+      with tf.variable_scope("all_vggs"):
+        frames = tf.split(state, self.FLAGS.state_hist, axis=3)
+        vgg_frames = []
+        for i,f in enumerate(frames):
+          if(i==0):
+            vgg_frames.append(self.vgg.vgg_16(f, num_classes=self.lstm_size)[0])
+          else:
+            tf.get_variable_scope().reuse_variables()
+            vgg_frames.append(self.vgg.vgg_16(f, num_classes=self.lstm_size)[0])
+
+      vgg_tensor_input = tf.stack(vgg_frames,axis=1)
+
+      with tf.variable_scope("trainable"):
+        lstm_cell = tf.contrib.rnn.BasicLSTMCell(self.lstm_size)
+        _, ( _, lstm_out) = tf.nn.dynamic_rnn(lstm_cell, vgg_tensor_input, dtype=tf.float32,scope=scope)
+        q_vals = layers.fully_connected(inputs=lstm_out, num_outputs = self.num_actions, activation_fn=None, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"fc")
+
+      fc8_variables = tf.contrib.framework.get_variables(scope+'/all_vggs/vgg_16/fc8')
+      other_trainable = tf.contrib.framework.get_variables(scope+'/trainable')
+      print(fc8_variables+other_trainable)
+      self.trainable_scope_vars[scope] = fc8_variables+other_trainable
+      self.scope_init[scope] = tf.variables_initializer(fc8_variables+other_trainable)
+      self.all_scope_vars[scope] = tf.contrib.framework.get_variables(scope)
+
+      return q_vals
+
+  def transfer_loaded_graph_op(self):
+    loaded_vars = self.all_loaded_vars
+    scope_vars = self.all_scope_vars[self.scope]
+    target_scope_vars = self.all_scope_vars[self.target_scope]
+
+    assn_vec = []
+    for i,loaded_var in enumerate(loaded_vars):
+      print(loaded_var)
+      print(scope_vars[i])
+      print(target_scope_vars[i])
+      assign_scope = tf.assign(scope_vars[i], loaded_var)
+      assn_vec.append(assign_scope)
+
+    self.transfer_op = tf.group(*assn_vec)
+
+  def add_update_target_op(self):
+    scope_vars = self.all_scope_vars[self.scope]
+    target_scope_vars = self.all_scope_vars[self.target_scope]
+
+    assn_vec = []
+    for i,var in enumerate(scope_vars):
+      assign = tf.assign(target_scope_vars[i], scope_vars[i])
+      assn_vec.append(assign)
+
+    self.update_target_op = tf.group(*assn_vec)
+
+
+  def initialize(self):
+    self.sess = tf.Session()
+
+    # tensorboard stuff
+    self.add_summary()
+
+    # initiliaze all variables
+    self.sess.run(tf.global_variables_initializer())
+    self.init_fn(self.sess)
+    self.sess.run(self.fc8_init)
+
+    self.sess.run(self.scope_init[self.scope])
+    self.sess.run(self.scope_init[self.target_scope])
+
+    self.sess.run(self.transfer_op)
+
+    # synchronise q and target_q network
+    self.update_target_params()
+
+    # for saving network weights
+    self.saver = tf.train.Saver(max_to_keep=2)
+
+  def add_optimizer_op(self):
+    opt = tf.train.AdamOptimizer(self.lr)
+    grads_and_vars = opt.compute_gradients(self.loss, var_list = self.trainable_scope_vars[self.scope])
+    clipped_grads_and_vars=[]
+    clipped_grads_list=[]
+    if (self.FLAGS.grad_clip):
+      for grads,var in grads_and_vars:
+        clipped_grads = tf.clip_by_norm(grads, self.FLAGS.clip_val)
+        clipped_grads_and_vars.append((clipped_grads,var))
+        clipped_grads_list.append(clipped_grads)
+
+      self.train_op = opt.apply_gradients(clipped_grads_and_vars)
+      self.grad_norm = tf.global_norm(clipped_grads_list)
+    else:
+      self.train_op = opt.apply_gradients(grads_and_vars)
+      self.grad_norm = tf.global_norm([grads for grads, _ in grads_and_vars])
 
 class RecurrentQ(Network):
   def get_q_values_op(self, state, scope, reuse=False):

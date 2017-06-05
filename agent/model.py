@@ -256,3 +256,9 @@ class Model(object):
     if self.FLAGS.record: self.record()
 
     return True
+
+  def record_videos(self, check_path):
+    # Initialize network session
+    self.network.record_initialize(check_path)
+    for _ in range(self.FLAGS.num_test):
+      self.record()

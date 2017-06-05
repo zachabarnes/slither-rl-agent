@@ -184,6 +184,11 @@ class SlitherProcessor(object):
       self.zoom = (.1,.1,1)
       self.high_val = 1.0
 
+    elif self.state_type == 'transfer':
+      self.state_size = [224,224,3]
+      self.zoom = (.75,.75,1)
+      self.high_val = 255.0
+
     else: NotImplementedError
 
   def process(self, frames):
@@ -195,6 +200,10 @@ class SlitherProcessor(object):
 
     elif self.state_type == 'shapes':
       return [self.process_shapes(f) for f in frames]
+
+    elif self.state_type == 'transfer':
+      frames = [self.process_colors(f) for f in frames]
+      return [f[1:,101:-100,:] for f in frames]
 
   def resize(self, frames):
     if self.state_type != 'features':

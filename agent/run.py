@@ -26,6 +26,8 @@ parser.add_argument('-env', '--env-id',       type=str,  default="internet.Slith
 parser.add_argument('-rec', '--record',       type=bool, default=False,                   help="Record videos during train")
 parser.add_argument('-buf', '--buffer_size',  type=int,  default=100000,                  help="Size of replay buffer")
 
+parser.add_argument('-rec_only', '--record_only',   type=bool,  default=False,                     help="")
+
 # Train Params
 parser.add_argument('-trn', '--train_steps',  type=int,   default=500000,  help="Number of steps to train")
 parser.add_argument('-tst', '--num_test',     type=int,   default=10,      help="Number of episodes to test model")
@@ -93,6 +95,9 @@ if __name__ == '__main__':
   elif FLAGS.network_type == 'recurrent_q':
     network = network.RecurrentQ(FLAGS)
 
+  elif FLAGS.network_type == 'transfer_q':
+    network = network.TransferQ(FLAGS)
+
   elif FLAGS.network_type == 'deep_ac':
     network = network.DeepAC(FLAGS)
 
@@ -113,8 +118,11 @@ if __name__ == '__main__':
   else:
     raise NotImplementedError
 
-  try:
-    model.run(exp_schedule, lr_schedule)
-  except Exception as e:
-    print(e)
-    network.save()
+  if FLAGS.record_only:
+    model.record_videos(FLAGS.model_path+'checkpoint')
+  else:
+    try:
+      model.run(exp_schedule, lr_schedule)
+    except Exception as e:
+      print(e)
+      #network.save()
