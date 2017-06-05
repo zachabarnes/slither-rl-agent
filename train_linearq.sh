@@ -6,4 +6,4 @@ rm -r nohup.out
 rm -r results/linear_q/events.out.tfevents*
 rm -r results/linear_q/log.txt
 tensorboard --logdir=results/linear_q/ &
-nohup python run.py -net feedforward_q -mod q -typ features&
+nohup python run.py -net linear_q -mod q -typ features&

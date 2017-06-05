@@ -23,13 +23,13 @@ parser.add_argument('-mod', '--model_type',   type=str,  default="q",           
 parser.add_argument('-typ', '--state_type',   type=str,  default="colors",                help="State type (features, colors, shapes)")
 parser.add_argument('-rem', '--remotes',      type=int,  default=1,                       help='Number of remotes to run')
 parser.add_argument('-env', '--env-id',       type=str,  default="internet.SlitherIO-v0", help="Environment id")
-parser.add_argument('-rec', '--record',       type=bool, default=False,                   help="Record videos during train")
+parser.add_argument('-rec', '--record',       type=bool, default=True,                   help="Record videos during train")
 parser.add_argument('-buf', '--buffer_size',  type=int,  default=100000,                  help="Size of replay buffer")
 
 parser.add_argument('-rec_only', '--record_only',   type=bool,  default=False,                     help="")
 
 # Train Params
-parser.add_argument('-trn', '--train_steps',  type=int,   default=500000,  help="Number of steps to train")
+parser.add_argument('-trn', '--train_steps',  type=int,   default=250000,  help="Number of steps to train")
 parser.add_argument('-tst', '--num_test',     type=int,   default=10,      help="Number of episodes to test model")
 parser.add_argument('-bat', '--batch_size',   type=int,   default=32,      help="Batch_size")
 parser.add_argument('-lnr', '--learning_rate',type=float, default=0.00025, help="Initial learning rate")
@@ -125,4 +125,4 @@ if __name__ == '__main__':
       model.run(exp_schedule, lr_schedule)
     except Exception as e:
       print(e)
-      #network.save()
+      network.save()
