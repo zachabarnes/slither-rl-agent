@@ -370,6 +370,45 @@ class RecurrentQ(Network):
     out = layers.fully_connected(inputs=out, num_outputs = 512, activation_fn=tf.nn.relu, weights_initializer=layers.xavier_initializer(), biases_initializer=tf.constant_initializer(0), scope=scope+"4", reuse=reuse)
     return out
 
+#In development and testing
+class HunterGathererQN(Network):
+  def __init__(self, FLAGS):
+    self.FLAGS = FLAGS
+    self.num_actions = FLAGS.num_actions
+    self.img_height, self.img_width, self.img_depth = FLAGS.state_size
+
+    self.gatherer = RecurrentQ(self.FLAGS)
+    self.hunter = RecurrentQ(self.FLAGS)
+    selctor_FLAGS = self.FLAGS
+    selector_FLAGS.num_actions = 2
+    self.selector = RecurrentQ(selector_FLAGS)
+
+  def build(self):
+    self.gatherer.build()
+    self.hunter.build()
+    self.selector.build()
+
+    self.add_total_loss_op()
+
+    self.add_total_optimizer_op()
+
+  def add_total_loss_op(self):
+    hunter_loss = self.hunter.loss
+    gatherer_loss = self.gatherer.loss
+    self.add_loss_op()
+    self.loss += hunter_loss + getherer_loss
+
+  def add_total_optimizer_op():
+    self.selector.loss = self.loss
+
+  def get_q_values_op(self, state, scope, reuse=False):
+    with tf.variable_scope(scope):
+      self.hunter_q_vals = self.hunter.get_q_values_op(state, "hunter")
+      self.gatherer_q_vals = self.hunter.get_q_values_op(state, "gatherer")
+      self.selector_vals = self.hunter.get_q_values_op(state, "selector")
+      to_hunt = self.selector_vals[0] > self.selector_vals[1]
+      return tf.cond(to_hunt, self.hunter_q_vals, self.gatherer.q_vals)
+
 class DeepAC(Network):
   def __init__(self, FLAGS):
     self.FLAGS = FLAGS

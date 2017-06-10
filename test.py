@@ -6,9 +6,10 @@ from utils.env import create_slither_env
 from universe.wrappers import Unvectorize
 
 if __name__ == '__main__':
+
   # Create customized and processed slither env
   #universe.configure_logging(False)
-  env = create_slither_env('features')
+  env = create_slither_env('shapes')
   env = Unvectorize(env)
   env.configure(fps=5.0, remotes=1, start_timeout=15 * 60, vnc_driver='go', vnc_kwargs={'encoding': 'tight', 'compress_level': 0, 'fine_quality_level': 50})
 

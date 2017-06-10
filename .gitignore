@@ -18,3 +18,13 @@ log.txt
 *.npy
 
 Atari/assignment2/gym/
+
+agent/results/feedforward_q/model.weights/.meta
+
+*.ip-172-31-18-34
+
+agent/results/feedforward_q/model.weights/.data-00000-of-00001
+
+agent/results/feedforward_q/model.weights/checkpoint
+
+agent/results/feedforward_q/model.weights/.index

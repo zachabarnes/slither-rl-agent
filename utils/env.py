@@ -120,22 +120,25 @@ class RenderWrapper(vectorized.Wrapper):
     self.viewer = None
 
     self.state_type = state_type
-    self.processor = SlitherProcessor(state_type)
-    self.state_size = self.processor.state_size
-    self.high_val = self.processor.high_val
+    self.processor_colors = SlitherProcessor('colors')
+    self.processor_shapes = SlitherProcessor('shapes')
+    self.state_size = self.processor_shapes.state_size
+    self.high_val = self.processor_shapes.high_val
 
     super(RenderWrapper, self).__init__(env)
 
   def _reset(self):
     self.orig_obs = self.env.reset()
-    self.proc_obs = self.processor.process(np.copy(self.orig_obs))
-    small_proc_obs = self.processor.resize(np.copy(self.proc_obs))
+    self.proc_obs_shapes = self.processor_shapes.process(np.copy(self.orig_obs))
+    self.proc_obs_colors = self.processor_colors.process(np.copy(self.orig_obs))
+    small_proc_obs = self.processor_shapes.resize(np.copy(self.proc_obs_shapes))
     return small_proc_obs
 
   def _step(self, action):
     self.orig_obs, reward, done, info = self.env.step(action)
-    self.proc_obs = self.processor.process(np.copy(self.orig_obs))
-    small_proc_obs = self.processor.resize(np.copy(self.proc_obs))
+    self.proc_obs_shapes = self.processor_shapes.process(np.copy(self.orig_obs))
+    self.proc_obs_colors = self.processor_colors.process(np.copy(self.orig_obs))
+    small_proc_obs = self.processor_shapes.resize(np.copy(self.proc_obs_shapes))
     return small_proc_obs, reward, done, info
 
   def _render(self, mode='human', close=False):
@@ -146,9 +149,9 @@ class RenderWrapper(vectorized.Wrapper):
       return
 
     if self.state_type == 'shapes':
-      gray_img = self.proc_obs[0]*100
+      gray_img = self.proc_obs_shapes[0]*100
       proc_obs = np.concatenate((gray_img, gray_img, gray_img),2)
-      img = np.concatenate((self.orig_obs[0],proc_obs),1)
+      img = np.concatenate((self.orig_obs[0][::-1,:,:],proc_obs[::-1,:,:],self.proc_obs_colors[0][::-1,:,:]),1)
 
     elif self.state_type == 'colors':
       img = np.concatenate((self.orig_obs[0],self.proc_obs[0]),1)

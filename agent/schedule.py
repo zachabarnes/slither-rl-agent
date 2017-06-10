@@ -95,7 +95,7 @@ class ExpExploration(LinearSchedule):
       return self.env.action_space.sample()
     return best_action
 
-class IterSchedule(object):
+class BGreedySchedule(object):
   def __init__(self, eps_begin, eps_end, eps_decay1, eps_decay2, nsteps, steps_per, iter_decay):
     """
     Args:
@@ -125,7 +125,7 @@ class IterSchedule(object):
       self.epsilon2       = self.epsilon2*eps_decay2
       self.eps_diff       = abs(self.epsilon1 - self.epsilon2)
 
-class IterSchedule(LinearSchedule):
+class BGreedyExploration(BGreedySchedule):
   def __init__(self, eps_begin, eps_end, eps_decay1, eps_decay2, nsteps, steps_per, iter_decay):
     """
     Args:
@@ -135,7 +135,7 @@ class IterSchedule(LinearSchedule):
       nsteps: number of steps between the two values of eps
     """
     self.env = env
-    super(LinearExploration, self).__init__(eps_begin, eps_end, eps_decay1, eps_decay2, nsteps, steps_per,iter_decay)
+    super(BGreedyExploration, self).__init__(eps_begin, eps_end, eps_decay1, eps_decay2, nsteps, steps_per,iter_decay)
 
   def get_action(self, best_action, ep_step_number):
     """
