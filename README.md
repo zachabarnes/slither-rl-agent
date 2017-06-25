@@ -51,3 +51,10 @@ cd RattLe
 python test.py
 ```
 you should see a tiny rendering of the game or "yay" on the command line.
+
+### Train a model
+
+Run the corresponding shell script. For example, to train our Recurrent Q model, run:
+```
+train_recurrentq.sh
+```
